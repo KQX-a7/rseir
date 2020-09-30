@@ -1,0 +1,72 @@
+---
+title: "inspect_observed_dataset"
+author: "QingXuan Kong"
+date: "2020/9/19"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(glue)
+```
+
+
+## the canada timeseries
+```{r}
+raw_timeseries <- read_csv("CA_20200919_Provincial_Daily_Totals.csv",col_types = "icciciiiiiiiiiiiii")
+
+mydata <- raw_timeseries %>% 
+  mutate(Date=parse_date(str_sub(SummaryDate,end = 10))) %>% 
+  select(Abbreviation,Date,starts_with("Daily"))
+
+## check Nas
+mydata %>%
+  group_by(Abbreviation) %>%
+  summarise(across(
+    starts_with("Daily"),
+    c(
+      first =  ~ Date[match(x = 1, table = !is.na(.x))],
+      last =  ~ Date[(length(.x) - match(x = 1, table = !is.na(rev(.x))) + 1)],
+      na_count =  ~ sum(!is.na(.x)),
+      zero_count = ~ sum(!.x==0,na.rm = T),
+      data_perc = ~ sum(!.x==0,na.rm = T)/sum(!is.na(.x))
+    ),
+    .names = "{.fn}_{.col}"
+  )) %>%
+  #select(Abbreviation,starts_with("data")) %>% 
+  View()
+
+## plot
+for (state_ac in unique(mydata$Abbreviation))
+{
+  temp_mydata <- mydata %>% filter(Abbreviation == state_ac)
+  for (i in 1:4)
+  {
+    v_name <- c("I1", "I2", "I3", "D")[i]
+    c_name <-
+      c("DailyTotals",
+        "DailyHospitalized",
+        "DailyICU",
+        "DailyDeaths")[i]
+    
+    if (!file.exists(paste0("inspection_outputs/Canada/", v_name)))
+      dir.create(paste0("inspection_outputs/Canada/", v_name))
+    
+    temp_plot <- ggplot(temp_mydata) +
+      geom_point(aes(x = Date, y = temp_mydata[[c_name]])) +
+      labs(x = "Date",
+           y = v_name,
+           title = paste0(state_ac, "_", v_name))
+    
+    ggsave(
+      filename = paste0(state_ac, "_", v_name, ".png"),
+      plot = temp_plot,
+      path = paste0("inspection_outputs/Canada/", v_name, "/")
+    )
+  }
+  
+}
+
+```
+
