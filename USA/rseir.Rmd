@@ -707,6 +707,8 @@ make_plots <- function(state_ac)
   ## reload the rds files
   dd_para <-
     readRDS(file = paste0("outputs/temp_rds/", state_ac, "_opt_res.rds"))$par
+  opt_res <-
+    readRDS(file = paste0("outputs/temp_rds/", state_ac, "_opt_res.rds"))
   s_para <-
     readRDS(file = paste0("outputs/temp_rds/", state_ac, "_sampling_para.rds"))
   obs_data_kit <-
