@@ -2,4 +2,5 @@
 .Rhistory
 .RData
 .Ruserdata
-rseir/outputs
+.gitignore
+rseir/outputs/
