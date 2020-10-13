@@ -80,7 +80,7 @@ rpyseir <- function()
     
     ## the optimizer
     ### notice: Minimization function is different. nlm doesn't take limits, try optim?
-    print(glue("optim for {state_ac} begin"))
+    print(glue("optim for {state_ac} begin, {which(state==state_ac)}/{length(state)}"))
     opt_res <-
       optim(
         par = initial_dd_parameter,
@@ -1507,7 +1507,8 @@ print(system.time(rpyseir()))
 ### the code below is for debug
 ## replot
 # make_plots(state_ac = state)
-beep(sound = 1, expr = NULL)
+beepr::beep(sound = 1, expr = NULL)
+
 ```
 
 

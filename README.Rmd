@@ -19,11 +19,11 @@ Pyseir is developed by [covidactnow.org](www.covidactnow.org)
 Rseir is developed by me(QingXuan Kong), as part of the Educational Research project,[covidplan](https://covidplan.io/), led by [illinois Risk lab (iRisk lab)](https://irisklabuiuc.wixsite.com/actsi)
 
 ## the comparison of predicted and observed, Canada
-![CA_I1_increase_zoomed](Canada/outputs/plots_by_state/CA/CA_I1_increase_zoomed.png)
+![CA_I1_increase_zoomed](rseir/outputs/CA/plots_by_state/CA/CA_CA_I1_increase_zoomed.png)
 
-![CA_I2_plus_I3_current](Canada/outputs/plots_by_state/CA/CA_I2_plus_I3_current.png)
+![CA_I2_plus_I3_current](rseir/outputs/CA/plots_by_state/CA/CA_CA_I2_plus_I3_current.png)
 
-![CA_D_increase_zoomed](Canada/outputs/plots_by_state/CA/CA_D_increase_zoomed.png)
+![CA_D_increase_zoomed](rseir/outputs/CA/plots_by_state/CA/CA_CA_D_increase_zoomed.png)
 
 ## User guied
 * Now it could run for both USA and Canada data, just go to the corresponding folder, open the rseir.Rmd and run according to the instruction.
