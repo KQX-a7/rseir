@@ -1,0 +1,7 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+rseir/outputs/**/*.png
+rseir/outputs/**/*.csv
+rseir/outputs/**/*.rds
