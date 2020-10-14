@@ -434,6 +434,12 @@ parse_observed_data_for_score_calculation <- function(state_ac)
          hosp_std <- ifelse(hosp_std==0,3,hosp_std)
          D_std <- ifelse(D_std==0,3,D_std)
          
+         ###
+         I1_std <- rep(1,length(I1_std))
+         D_std <- rep(1,length(D_std))
+         hosp_std <- rep(1,length(hosp_std))
+         ###
+         
          return(
            list(
              I1_obsdays = I1_obsdays,
@@ -532,7 +538,7 @@ score_function <- function(dd_para, s_para, obs_data_kit)
     
     ### notice: no_data_penalty is not implemented
     # return(chi2_I1 + chi2_D + chi2_hosp)
-    return(chi2_I1+ chi2_hosp)
+    return(chi2_I1+ chi2_hosp + chi2_D)
   })
 }
 
@@ -1516,7 +1522,7 @@ print(system.time(rpyseir()))
 ## replot
 # make_plots(state_ac = state)
 beepr::beep(sound = 1, expr = NULL)
-
+## to add phases: change setup_parameters, build_beta1t, vline function in make plot
 ```
 
 
