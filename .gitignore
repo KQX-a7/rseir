@@ -5,3 +5,4 @@
 rseir/outputs/**/*.png
 rseir/outputs/**/*.csv
 rseir/outputs/**/*.rds
+temp/
