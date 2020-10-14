@@ -549,7 +549,7 @@ score_function <- function(dd_para, s_para, obs_data_kit)
 build_beta1t <- function(supt_para, delta)
 {
   # 1:total_days is the days_from_t0_index
-  ### notice: no implementation for eps_future,so no cap on eps2
+  ### notice: no implementation for eps_future,so no cap on eps3
   if (number_of_phase == 1)
   {
     R0 <- supt_para[1]
@@ -561,17 +561,17 @@ build_beta1t <- function(supt_para, delta)
   {
     R0 <- supt_para[1]
     phase1_duration <- supt_para[2]
-    eps1 <- supt_para[3]
+    eps2 <- supt_para[3]
     
     beta1t <-
       approx(
         x = c(1,
               phase1_duration,
               phase1_duration + 14),
-        y = R0 * delta * c(1, 1, eps1),
+        y = R0 * delta * c(1, 1, eps2),
         xout = 1:(total_days+1),
         yleft = R0 * delta * 1,
-        yright = R0 * delta * eps1
+        yright = R0 * delta * eps2
       )
     return(beta1t$y)
   }
@@ -579,9 +579,9 @@ build_beta1t <- function(supt_para, delta)
   {
     R0 <- supt_para[1]
     phase1_duration <- supt_para[2]
-    eps1 <- supt_para[3]
+    eps2 <- supt_para[3]
     phase2_duration <- supt_para[4]
-    eps2 <- supt_para[5]
+    eps3 <- supt_para[5]
     
     beta1t <-
       approx(
@@ -592,10 +592,10 @@ build_beta1t <- function(supt_para, delta)
           phase1_duration + 14 + phase2_duration,
           phase1_duration + 14 + phase2_duration + 14
         ),
-        y = R0 * delta * c(1, 1, eps1, eps1, eps2),
+        y = R0 * delta * c(1, 1, eps2, eps2, eps3),
         xout = 1:(total_days+1),
         yleft = R0 * delta * 1,
-        yright = R0 * delta * eps2
+        yright = R0 * delta * eps3
       )
     return(beta1t$y)
   }
@@ -810,7 +810,7 @@ make_plots <- function(state_ac)
     if (number_of_phase == 2)
     {
       phase1_duration <- dd_para[5]
-      eps1 <- dd_para[6]
+      eps2 <- dd_para[6]
       phase1_end <- reference_date + t0 + phase1_duration
       temp_plot <- temp_plot +
         geom_vline(xintercept = phase1_end, color = "black") +
@@ -823,19 +823,19 @@ make_plots <- function(state_ac)
         temp_plot <- temp_plot +
           annotate("text",
                  x = phase1_end+14,
-                 y = eps1,
-                 label = paste0("eps1=",eps1),size = 3)
+                 y = eps2,
+                 label = paste0("eps2=",eps2),size = 3)
       }
     }
     else if (number_of_phase == 3)
     {
       phase1_duration <- dd_para[5]
       phase1_end <- reference_date + t0 + phase1_duration
-      eps1 <- dd_para[6]
+      eps2 <- dd_para[6]
       phase2_duration <- dd_para[7]
       phase2_end <-
         reference_date + t0 + phase1_duration + days_between_phases + phase2_duration
-      eps2 <- dd_para[8]
+      eps3 <- dd_para[8]
       temp_plot <- temp_plot +
         geom_vline(xintercept = phase1_end, color = "black") +
         annotate("text",
@@ -853,15 +853,15 @@ make_plots <- function(state_ac)
           annotate(
             "text",
             x = phase1_end+14,
-            y = eps1,
-            label = paste0("eps1=",eps1),
+            y = eps2,
+            label = paste0("eps2=",eps2),
             size = 3
           ) +
           annotate(
             "text",
             x = phase2_end+14,
-            y = eps2,
-            label = paste0("eps2=",eps2),
+            y = eps3,
+            label = paste0("eps3=",eps3),
             size = 3
           )
       }
@@ -1497,17 +1497,17 @@ initial_dd_parameter <- c(
   phase1_duration = 20,
   # limit_phase1_duration=[5, 40],
   # error_phase1_duration=1,
-  eps1 = 0.3,
-  # limit_eps1=[0.20, 1.2],
-  # error_eps1=0.005,
+  eps2 = 0.3,
+  # limit_eps2=[0.20, 1.2],
+  # error_eps2=0.005,
   
   phase2_duration = 30,
   # supposed to be number of days between second and third ramps
   # limit_phase2_duration=[14, 100],
   # error_t_delta_phases=1,
-  eps2 = 0.3
-  # limit_eps2=[0.20, 2.0],
-  # error_eps2=0.005,
+  eps3 = 0.3
+  # limit_eps3=[0.20, 2.0],
+  # error_eps3=0.005,
   
   # What's this?
   # errordef=0.5,
