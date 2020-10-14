@@ -19,11 +19,11 @@ Pyseir is developed by [covidactnow.org](www.covidactnow.org)
 Rseir is developed by me(QingXuan Kong), as part of the Educational Research project,[covidplan](https://covidplan.io/), led by [illinois Risk lab (iRisk lab)](https://irisklabuiuc.wixsite.com/actsi)
 
 ## the comparison of predicted and observed, Canada
-![CA_I1_increase_zoomed](rseir/outputs/CA/plots_by_state/CA/CA_CA_I1_increase_zoomed.png)
+![CA_I1_increase_zoomed](cached_output/20201013/outputs/CA/plots_by_state/CA/CA_CA_I1_increase_zoomed.png)
 
-![CA_I2_plus_I3_current](rseir/outputs/CA/plots_by_state/CA/CA_CA_I2_plus_I3_current.png)
+![CA_I2_plus_I3_current](cached_output/20201013/outputs/CA/plots_by_state/CA/CA_CA_I2_plus_I3_current.png)
 
-![CA_D_increase_zoomed](rseir/outputs/CA/plots_by_state/CA/CA_CA_D_increase_zoomed.png)
+![CA_D_increase_zoomed](cached_output/20201013/outputs/CA/plots_by_state/CA/CA_CA_D_increase_zoomed.png)
 
 ## User guied
 * Now it could run for both USA and Canada data, just go to the corresponding folder, open the rseir.Rmd and run according to the instruction.
@@ -39,6 +39,13 @@ Rseir is developed by me(QingXuan Kong), as part of the Educational Research pro
 * If you are looking for plots for a specific state, go to "outputs/plots_by_state". If you are looking for plots for a specific type, go to "outputs/plots".
 
 ## updata history
+
+### 20201013
+The two prgram for USA and Canada are merge into one. A country parameter is added in the setup parameter list.
+
+New features:
+1. Indicate the seqence number of state at the beginning of their run. 
+2. Add some folder create code to make sure the output folders exist.
 
 ### 20200920
 I update rseir, with a tweaked setup for the current Canada data in the "Canada" folder.

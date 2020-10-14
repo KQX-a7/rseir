@@ -1423,6 +1423,14 @@ make_plots <- function(state_ac)
 ### the code below is for debug
 ## replot
 # make_plots(state_ac = state)
+
+### create those goddame folder in case git wipe them
+folder_list <- c("outputs/CA/SEIRD_data","outputs/CA/plots_by_state","outputs/CA/temp_rds","outputs/US/SEIRD_data","outputs/US/plots_by_state","outputs/US/temp_rds")
+for (folder in folder_list) {
+  if (!file.exists(folder))
+  dir.create(folder, recursive = TRUE)
+}
+
 ```
 
 
