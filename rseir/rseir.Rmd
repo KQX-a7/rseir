@@ -254,6 +254,7 @@ get_sampling_parameters <- function(state_ac, n_sample = 5000)
 ## load historical/observed data and extract the value needed for score calculation
 parse_observed_data_for_score_calculation <- function(state_ac)
 {
+  ## different observed data import process for US and CA
   if (country == "US")
   {
     raw_timeseries <-
@@ -334,9 +335,21 @@ parse_observed_data_for_score_calculation <- function(state_ac)
   }
   )
   
-  ## extract non-na row
+  ## smooth the observed increase/current data 2020/10/21
+  head(target_timeseries)
+  my_smooth <- function(vec,radius){
+    # radius=1 is equal to a window of 3
+    res_vec <- (lag(vec,n=radius)+vec+lead(vec,n=radius))/3
+    return(res_vec)
+  }
+  target_timeseries <- target_timeseries %>% 
+    mutate(across(!c(state,days_to_ref), ~ my_smooth(vec = .x,radius = window_radius)))
+  head(target_timeseries)
+  ##
+  
   with(target_timeseries,
        {
+         ## extract non-na row
          I1_obsdays <- days_to_ref[!is.na(cases_increase)]
          I1_obs <- cases_increase[!is.na(cases_increase)]
          D_obsdays <- days_to_ref[!is.na(deaths_increase)]
@@ -399,11 +412,12 @@ parse_observed_data_for_score_calculation <- function(state_ac)
 
          
          
-         
+         ## calculate standard deviation
          # chi-square score need standard deviance for each observation
          # don't know why it should be calculation in this way
          # the I1 and hosp std is multiplied by 0.5. This is equal to multiply their chi-square score by 4. It is supposed to "control chi2 mix between hospitalization and deaths"
          # The following comments are the origin comments of std calcualtion from pyseir
+         
          # Generate the errors on the observations.
          # Here we throw out a few assumptions to plant a flag...
          # 1. Systematic errors dominate and are likely of order 50% at least based
@@ -422,6 +436,8 @@ parse_observed_data_for_score_calculation <- function(state_ac)
          # the errors in the following way:
          # 1. Set the error of the largest observation to 100% of its value.
          # 2. Scale all other errors based on sqrt(value) * sqrt(max_value)
+         
+         ## calculate standard deviation
          I1_std <- sqrt(I1_obs) * sqrt(max(I1_obs)) * 0.5
          hosp_std <- sqrt(hosp_obs) * sqrt(max(hosp_obs)) * 0.5
          D_std <- sqrt(D_obs) * sqrt(max(D_obs))
@@ -434,11 +450,11 @@ parse_observed_data_for_score_calculation <- function(state_ac)
          hosp_std <- ifelse(hosp_std==0,3,hosp_std)
          D_std <- ifelse(D_std==0,3,D_std)
          
-         ###
+         ## never mind, just set them as all 1.
          I1_std <- rep(1,length(I1_std))
          D_std <- rep(1,length(D_std))
          hosp_std <- rep(1,length(hosp_std))
-         ###
+         ##
          
          return(
            list(
@@ -538,7 +554,7 @@ score_function <- function(dd_para, s_para, obs_data_kit)
     
     ### notice: no_data_penalty is not implemented
     # return(chi2_I1 + chi2_D + chi2_hosp)
-    return(chi2_I1+ chi2_hosp + chi2_D)
+    return(chi2_I1+ chi2_hosp)
   })
 }
 
@@ -567,7 +583,7 @@ build_beta1t <- function(supt_para, delta)
       approx(
         x = c(1,
               phase1_duration,
-              phase1_duration + 14),
+              phase1_duration + days_between_phases),
         y = R0 * delta * c(1, 1, eps2),
         xout = 1:(total_days+1),
         yleft = R0 * delta * 1,
@@ -588,9 +604,9 @@ build_beta1t <- function(supt_para, delta)
         x = c(
           1,
           phase1_duration,
-          phase1_duration + 14,
-          phase1_duration + 14 + phase2_duration,
-          phase1_duration + 14 + phase2_duration + 14
+          phase1_duration + days_between_phases,
+          phase1_duration + days_between_phases + phase2_duration,
+          phase1_duration + days_between_phases + phase2_duration + days_between_phases
         ),
         y = R0 * delta * c(1, 1, eps2, eps2, eps3),
         xout = 1:(total_days+1),
@@ -599,8 +615,36 @@ build_beta1t <- function(supt_para, delta)
       )
     return(beta1t$y)
   }
+  else if (number_of_phase == 4)
+  {
+    R0 <- supt_para[1]
+    phase1_duration <- supt_para[2]
+    eps2 <- supt_para[3]
+    phase2_duration <- supt_para[4]
+    eps3 <- supt_para[5]
+    phase3_duration <- supt_para[6]
+    eps4 <- supt_para[7]
+    
+    beta1t <-
+      approx(
+        x = c(
+          1,
+          phase1_duration,
+          phase1_duration + days_between_phases,
+          phase1_duration + days_between_phases + phase2_duration,
+          phase1_duration + days_between_phases + phase2_duration + days_between_phases,
+          phase1_duration + days_between_phases + phase2_duration + days_between_phases + phase3_duration,
+          phase1_duration + days_between_phases + phase2_duration + days_between_phases + phase3_duration + days_between_phases
+        ),
+        y = R0 * delta * c(1, 1, eps2, eps2, eps3, eps3, eps4),
+        xout = 1:(total_days+1),
+        yleft = R0 * delta * 1,
+        yright = R0 * delta * eps4
+      )
+    return(beta1t$y)
+  }
   
-  try(if (!number_of_phase %in% c(1,2,3)) {
+  try(if (!number_of_phase %in% c(1,2,3,4)) {
     stop(paste0(number_of_phase, " phases is not implemented yet."))
   })
 }
@@ -782,93 +826,179 @@ make_plots <- function(state_ac)
         last_date_with_available_data)
   
   ## need a function to add the vertical lines bases on the number of phases
-  Add_timestamp_vline <- function(temp_plot,skip=FALSE,for_beta1t=FALSE)
-  {
-    temp_plot <- temp_plot +
-      geom_vline(xintercept = reference_date + t0, color = "black") +
-      annotate("text",
-               x = reference_date + t0,
-               y = 0,
-               label = "t0",size = 3) +
-      geom_vline(xintercept = beginning_of_future, color = "black") +
-      annotate("text",
-               x = beginning_of_future,
-               y = 0,
-               label = "pred_begin",size = 3)
-    ## some plots don't need to add the phase stuff, so here is a way to skip them
-    if(skip==TRUE)
+  Add_timestamp_vline <-
+    function(temp_plot,
+             skip = FALSE,
+             for_beta1t = FALSE)
     {
-      return(temp_plot)
-    }
-    
-    ## check number_of_phase and add vertical lines where the phase is changed
-    try(if (!number_of_phase %in% c(1, 2, 3)) {
-      stop(paste0(number_of_phase, " phases is not implemented yet."))
-    }
-    )
-    
-    if (number_of_phase == 2)
-    {
-      phase1_duration <- dd_para[5]
-      eps2 <- dd_para[6]
-      phase1_end <- reference_date + t0 + phase1_duration
       temp_plot <- temp_plot +
-        geom_vline(xintercept = phase1_end, color = "black") +
-        annotate("text",
-                 x = phase1_end,
-                 y = 0,
-                 label = "p1_end",size = 3)
-      if(for_beta1t==TRUE)
+        geom_vline(xintercept = reference_date + t0, color = "black") +
+        annotate(
+          "text",
+          x = reference_date + t0,
+          y = 0,
+          label = "t0",
+          size = 3
+        ) +
+        geom_vline(xintercept = beginning_of_future, color = "black") +
+        annotate(
+          "text",
+          x = beginning_of_future,
+          y = 0,
+          label = "pred_begin",
+          size = 3
+        )
+      ## some plots don't need to add the phase stuff, so here is a way to skip them
+      if (skip == TRUE)
       {
-        temp_plot <- temp_plot +
-          annotate("text",
-                 x = phase1_end+14,
-                 y = eps2,
-                 label = paste0("eps2=",eps2),size = 3)
+        return(temp_plot)
       }
-    }
-    else if (number_of_phase == 3)
-    {
-      phase1_duration <- dd_para[5]
-      phase1_end <- reference_date + t0 + phase1_duration
-      eps2 <- dd_para[6]
-      phase2_duration <- dd_para[7]
-      phase2_end <-
-        reference_date + t0 + phase1_duration + days_between_phases + phase2_duration
-      eps3 <- dd_para[8]
-      temp_plot <- temp_plot +
-        geom_vline(xintercept = phase1_end, color = "black") +
-        annotate("text",
-                 x = phase1_end,
-                 y = 0,
-                 label = "p1_end",size = 3) +
-        geom_vline(xintercept = phase2_end, color = "black") +
-        annotate("text",
-                 x = phase2_end,
-                 y = 0,
-                 label = "p2_end",size = 3)
-      if (for_beta1t == TRUE)
+      
+      ## check number_of_phase and add vertical lines where the phase is changed
+      try(if (!number_of_phase %in% c(1, 2, 3, 4)) {
+        stop(paste0(number_of_phase, " phases is not implemented yet."))
+      })
+      
+      if (number_of_phase == 2)
       {
+        phase1_duration <- dd_para[5]
+        eps2 <- dd_para[6]
+        phase1_end <- reference_date + t0 + phase1_duration
         temp_plot <- temp_plot +
+          geom_vline(xintercept = phase1_end, color = "black") +
           annotate(
             "text",
-            x = phase1_end+14,
-            y = eps2,
-            label = paste0("eps2=",eps2),
-            size = 3
-          ) +
-          annotate(
-            "text",
-            x = phase2_end+14,
-            y = eps3,
-            label = paste0("eps3=",eps3),
+            x = phase1_end,
+            y = 0,
+            label = "p1_end",
             size = 3
           )
+        if (for_beta1t == TRUE)
+        {
+          temp_plot <- temp_plot +
+            annotate(
+              "text",
+              x = phase1_end + days_between_phases,
+              y = eps2,
+              label = paste0("eps2=", eps2),
+              size = 3
+            )
+        }
       }
+      else if (number_of_phase == 3)
+      {
+        phase1_duration <- dd_para[5]
+        phase1_end <- reference_date + t0 + phase1_duration
+        eps2 <- dd_para[6]
+        phase2_duration <- dd_para[7]
+        phase2_end <-
+          reference_date + t0 + phase1_duration + days_between_phases + phase2_duration
+        eps3 <- dd_para[8]
+        temp_plot <- temp_plot +
+          geom_vline(xintercept = phase1_end, color = "black") +
+          annotate(
+            "text",
+            x = phase1_end,
+            y = 0,
+            label = "p1_end",
+            size = 3
+          ) +
+          geom_vline(xintercept = phase2_end, color = "black") +
+          annotate(
+            "text",
+            x = phase2_end,
+            y = 0,
+            label = "p2_end",
+            size = 3
+          )
+        if (for_beta1t == TRUE)
+        {
+          temp_plot <- temp_plot +
+            annotate(
+              "text",
+              x = phase1_end + days_between_phases,
+              y = eps2,
+              label = paste0("eps2=", eps2),
+              size = 3
+            ) +
+            annotate(
+              "text",
+              x = phase2_end + days_between_phases,
+              y = eps3,
+              label = paste0("eps3=", eps3),
+              size = 3
+            )
+        }
+      }
+      else if (number_of_phase == 4)
+      {
+        phase1_duration <- dd_para[5]
+        phase1_end <- reference_date + t0 + phase1_duration
+        eps2 <- dd_para[6]
+        phase2_duration <- dd_para[7]
+        phase2_end <-
+          reference_date + t0 + phase1_duration + days_between_phases + phase2_duration
+        eps3 <- dd_para[8]
+        phase3_duration <- dd_para[9]
+        phase3_end <-
+          reference_date + t0 + phase1_duration + days_between_phases + phase2_duration + days_between_phases + phase3_duration
+        eps4 <- dd_para[10]
+        
+        
+        temp_plot <- temp_plot +
+          geom_vline(xintercept = phase1_end, color = "black") +
+          annotate(
+            "text",
+            x = phase1_end,
+            y = 0,
+            label = "p1_end",
+            size = 3
+          ) +
+          geom_vline(xintercept = phase2_end, color = "black") +
+          annotate(
+            "text",
+            x = phase2_end,
+            y = 0,
+            label = "p2_end",
+            size = 3
+          ) +
+          geom_vline(xintercept = phase3_end, color = "black") +
+          annotate(
+            "text",
+            x = phase3_end,
+            y = 0,
+            label = "p3_end",
+            size = 3
+          )
+        
+        if (for_beta1t == TRUE)
+        {
+          temp_plot <- temp_plot +
+            annotate(
+              "text",
+              x = phase1_end + days_between_phases,
+              y = eps2,
+              label = paste0("eps2=", eps2),
+              size = 3
+            ) +
+            annotate(
+              "text",
+              x = phase2_end + days_between_phases,
+              y = eps3,
+              label = paste0("eps3=", eps3),
+              size = 3
+            ) +
+            annotate(
+              "text",
+              x = phase3_end + days_between_phases,
+              y = eps4,
+              label = paste0("eps4=", eps4),
+              size = 3
+            )
+        }
+      }
+        return(temp_plot)
     }
-    return(temp_plot)
-  }
-  
   plots_by_state_path <-
     glue("outputs/{country}/plots_by_state/{state_ac}")
   if (!file.exists(plots_by_state_path))
@@ -1452,7 +1582,7 @@ country <- "CA"  # "US" or "CA"
 # c("AB","BC","CA","MB","NB","NL","NS","ON","QC","SK")
 # available state list for US:
 # TBD
-state <- c("CA")
+state <- c("CA")# c("CA")
 # Please don't set "all_states" as TRUE, it will takes several hours to finish with a three-phases setup. 
 all_states <- FALSE
 
@@ -1462,6 +1592,8 @@ state_info <- read_csv(glue("inputs/{country}_state_info.csv"))
 reference_date <- parse_date("2020-01-01")
 # reference_date is needed in optimizing the t0, the beginning date of the pandemic
 days_between_phases <- 14
+# smoothing window radius. window_radius = 1 is equal to a window of 3
+window_radius <- 3
 # days between different time phase, for smoothing
 total_days <- 365
 # the total length of the SEIRD timeseries, include the past and the future
@@ -1473,7 +1605,7 @@ last_date_with_available_data <- Sys.Date()
 n_sample <- 5000
 
 ## for data-driven parameter
-number_of_phase <- 3
+number_of_phase <- 4
 # the initial value of data-driven parameters
 # error is not used
 initial_dd_parameter <- c(
@@ -1493,6 +1625,7 @@ initial_dd_parameter <- c(
   R0 = 3.4,
   # limit_R0=[2, 4.5],
   # error_R0=0.05,
+  # eps1 = 1
   
   phase1_duration = 20,
   # limit_phase1_duration=[5, 40],
@@ -1505,16 +1638,24 @@ initial_dd_parameter <- c(
   # supposed to be number of days between second and third ramps
   # limit_phase2_duration=[14, 100],
   # error_t_delta_phases=1,
-  eps3 = 0.3
-  # limit_eps3=[0.20, 2.0],
+  eps3 = 0.3,
+  # limit_eps3=[0.10, 2.0],
   # error_eps3=0.005,
+  
+  # the fourth phase
+  phase3_duration = 60,
+  # limit_phase2_duration=[14, 100],
+  # error_t_delta_phases=1,
+  eps4 = 0.5
+  # limit_eps4=[0.10, 2.0],
+  # error_eps4=0.005,
   
   # What's this?
   # errordef=0.5,
 )
 # upper/lower bound, needed in optimization
-dd_parameter_upper <- c(1,1,80,4.5,40,1.2,100,2)
-dd_parameter_lower <- c(0.02,0.25,10,2,5,0.2,14,0.1)
+dd_parameter_upper <- c(1,1,80,4.5,40,1.2,100,2,100,2)
+dd_parameter_lower <- c(0.02,0.25,10,2,5,0.2,14,0.1,14,0.1)
 
 print(system.time(rpyseir()))
 
