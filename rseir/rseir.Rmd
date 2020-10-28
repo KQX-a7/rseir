@@ -39,28 +39,6 @@ library(tidyverse)
 library(deSolve)
 library(glue)
 
-# ## create the state info table with population and fip
-# get_state_info <- function()
-# {
-#   ## create the population and fip obj
-#   raw_population <-
-#     read_csv("inputs/populations.csv", col_types = "c-i")
-#   raw_state_and_fips <-
-#     read_csv("inputs/state_and_fips.csv", col_types = "cccc")
-#   # VI and PR can't be found in the pyseir output
-#   
-#   state_info <-
-#     left_join(raw_population,
-#               raw_state_and_fips,
-#               by = c("state" = "Alpha code")) %>%
-#     filter(!str_detect(Status, pattern = "Minor")) %>%
-#     rename("alpha_code" = "state", "dirty_fip" = "Numeric code") %>%
-#     mutate(fip = ifelse(nchar(dirty_fip) == 2, dirty_fip, paste0("0", dirty_fip))) %>%
-#     select(Name, alpha_code, fip, population) %>%
-#     arrange(Name)
-#   return(state_info)
-# }
-
 
 #### rpyseir
 rpyseir <- function()

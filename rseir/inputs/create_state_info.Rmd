@@ -1,0 +1,48 @@
+---
+title: "create_state_info"
+author: "QingXuan Kong"
+date: "2020/10/28"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## US
+```{r}
+library(tidyverse)
+## create the state info table with population and fip
+
+## create the population and fip obj
+raw_population <-
+  read_csv("populations.csv", col_types = "c-i")
+raw_state_and_fips <-
+  read_csv("state_and_fips.csv", col_types = "cccc")
+# VI and PR can't be found in the pyseir output
+
+state_info <-
+  left_join(raw_population,
+            raw_state_and_fips,
+            by = c("state" = "Alpha code")) %>%
+  filter(!str_detect(Status, pattern = "Minor")) %>%
+  rename("alpha_code" = "state", "dirty_fip" = "Numeric code") %>%
+  mutate(fip = ifelse(nchar(dirty_fip) == 2, dirty_fip, paste0("0", dirty_fip))) %>%
+  select(Name, alpha_code, fip, population) %>%
+  arrange(Name)
+
+## Adding the reopen date
+raw_reopen_date <- read_csv("pin_police_date/new-project.csv")
+raw_reopen_date[45,1] <- "2020 April 28."
+cleaned_reopen_date <- raw_reopen_date %>% 
+  mutate(date=str_replace(date,"Reopened","2020")) %>% 
+  mutate(date=parse_date(date,format="%Y %B %d.",locale = default_locale())) %>% 
+  rename("reopen_date"="date") %>% 
+  mutate(lock_down_date=parse_date("2020-03-16",format = "%Y-%m-%d")) %>% 
+  select(state,lock_down_date,reopen_date)
+
+state_info <- inner_join(state_info,cleaned_reopen_date,by=c("Name"="state"))
+write_csv(state_info,"US_state_info.csv")
+
+```
+
