@@ -56,6 +56,16 @@ rpyseir <- function()
     observed_data_kit <-
       parse_observed_data_for_score_calculation(state_ac)
     
+    ### 20201103 pin policy update
+    initial_dd_parameter[5] <- as.integer(sampling_para$lockdown_date - reference_date)
+    dd_parameter_upper[5] <- initial_dd_parameter[5]+opt_radius_of_policydate
+    dd_parameter_lower[5] <- initial_dd_parameter[5]-opt_radius_of_policydate
+    
+    initial_dd_parameter[7] <- as.integer(sampling_para$reopen_date - reference_date)
+    dd_parameter_upper[7] <- initial_dd_parameter[7]+opt_radius_of_policydate
+    dd_parameter_lower[7] <- initial_dd_parameter[7]-opt_radius_of_policydate
+    ###
+    
     ## the optimizer
     ### notice: Minimization function is different. nlm doesn't take limits, try optim?
     print(glue("optim for {state_ac} begin, {which(state==state_ac)}/{length(state)}"))
@@ -142,6 +152,8 @@ get_sampling_parameters <- function(state_ac, n_sample = 5000)
     population =
       state_info$population[which(state_info$alpha_code == state_ac)],
     state_name = state_info$Name[which(state_info$alpha_code == state_ac)],
+    lockdown_date = state_info$lock_down_date[which(state_info$alpha_code == state_ac)],
+    reopen_date = state_info$reopen_date[which(state_info$alpha_code == state_ac)],
     
     ### notice: the SEIRD initial value setup is moved to get_SEIRD_timeseries()
     
@@ -465,7 +477,10 @@ score_function <- function(dd_para, s_para, obs_data_kit)
   hosp_fraction <- dd_para[2]
   t0 <- dd_para[3]
   
-  supt_para <- dd_para[-(1:3)]
+  ### 20201103 pin policy update
+  # supt_para <- dd_para[-(1:3)]
+  supt_para <- dd_to_supt(dd_para)
+  ###
   
   # this beta1t is a vector storing the beta1 value on day 1:total_days
   # it represent/determined the number of phases
@@ -741,7 +756,12 @@ final_result_generation <- function(state_ac,dd_para,s_para,obs_data_kit)
   
   # this beta1t is a vector storing the beta1 value on day 1:total_days
   # it represent/determined the number of phases
-  supt_para <- dd_para[-(1:3)]
+  
+  ### 20201103 pin policy update
+  # supt_para <- dd_para[-(1:3)]
+  supt_para <- dd_to_supt(dd_para)
+  ###
+  
   param_set$beta1t <- build_beta1t(supt_para, s_para$delta)
   
   SEIRD_pred <- get_SEIRD_timeseries(param_set)
@@ -803,6 +823,11 @@ make_plots <- function(state_ac)
     min(reference_date + max(obs_data_kit$I1_obsdays),
         last_date_with_available_data)
   
+  ### 20201103 pin policy update
+  # supt_para <- dd_para[-(1:3)]
+  supt_para <- dd_to_supt(dd_para)
+  ###
+  
   ## need a function to add the vertical lines bases on the number of phases
   Add_timestamp_vline <-
     function(temp_plot,
@@ -825,7 +850,9 @@ make_plots <- function(state_ac)
           y = 0,
           label = "pred_begin",
           size = 3
-        )
+        ) +
+        labs(caption = Sys.time())
+      
       ## some plots don't need to add the phase stuff, so here is a way to skip them
       if (skip == TRUE)
       {
@@ -839,8 +866,8 @@ make_plots <- function(state_ac)
       
       if (number_of_phase == 2)
       {
-        phase1_duration <- dd_para[5]
-        eps2 <- dd_para[6]
+        phase1_duration <- supt_para[2]
+        eps2 <- supt_para[3]
         phase1_end <- reference_date + t0 + phase1_duration
         temp_plot <- temp_plot +
           geom_vline(xintercept = phase1_end, color = "black") +
@@ -865,13 +892,13 @@ make_plots <- function(state_ac)
       }
       else if (number_of_phase == 3)
       {
-        phase1_duration <- dd_para[5]
+        phase1_duration <- supt_para[2]
         phase1_end <- reference_date + t0 + phase1_duration
-        eps2 <- dd_para[6]
-        phase2_duration <- dd_para[7]
+        eps2 <- supt_para[3]
+        phase2_duration <- supt_para[4]
         phase2_end <-
           reference_date + t0 + phase1_duration + days_between_phases + phase2_duration
-        eps3 <- dd_para[8]
+        eps3 <- supt_para[5]
         temp_plot <- temp_plot +
           geom_vline(xintercept = phase1_end, color = "black") +
           annotate(
@@ -910,17 +937,17 @@ make_plots <- function(state_ac)
       }
       else if (number_of_phase == 4)
       {
-        phase1_duration <- dd_para[5]
+        phase1_duration <- supt_para[2]
         phase1_end <- reference_date + t0 + phase1_duration
-        eps2 <- dd_para[6]
-        phase2_duration <- dd_para[7]
+        eps2 <- supt_para[3]
+        phase2_duration <- supt_para[4]
         phase2_end <-
           reference_date + t0 + phase1_duration + days_between_phases + phase2_duration
-        eps3 <- dd_para[8]
-        phase3_duration <- dd_para[9]
+        eps3 <- supt_para[5]
+        phase3_duration <- supt_para[6]
         phase3_end <-
           reference_date + t0 + phase1_duration + days_between_phases + phase2_duration + days_between_phases + phase3_duration
-        eps4 <- dd_para[10]
+        eps4 <- supt_para[7]
         
         
         temp_plot <- temp_plot +
@@ -1354,7 +1381,7 @@ make_plots <- function(state_ac)
   ## the plot of beta1t
   ## to see the data-driven parameters
   temp_plot <- ggplot() +
-    geom_line(aes(x = SEIRD_pred$date, y = build_beta1t(dd_para[-(1:3)], s_para$delta)), color =
+    geom_line(aes(x = SEIRD_pred$date, y = build_beta1t(supt_para, s_para$delta)), color =
                 "red") +
     labs(
       x = "Date",
@@ -1364,12 +1391,12 @@ make_plots <- function(state_ac)
       subtitle = paste0("number of phases=",
                         number_of_phase,
                         "   R0=",
-                        dd_para[4],
+                        supt_para[1],
                         "   delta=",
                         s_para$delta,
                         "   optim_code=",
                         opt_res$convergence),
-      caption = paste0(
+      caption = paste0(Sys.time(),
         "test_fraction=",
         test_fraction,
         "   hosp_fraction=",
@@ -1545,6 +1572,21 @@ for (folder in folder_list) {
   dir.create(folder, recursive = TRUE)
 }
 
+### 20201103 pin policy update
+dd_to_supt <- function(dd_para)
+{
+  supt_para <- dd_para[-(1:3)]
+  supt_para[2] <- dd_para[5]-dd_para[3] ## lockdown,subtract by t0
+  supt_para[4] <- dd_para[7]-dd_para[5] ## reopen, to
+  
+  if(supt_para[2]<0 || supt_para[4]<0)
+  {
+    print("warning: negaitive duration")
+  }
+  return(supt_para)
+}
+
+
 ```
 
 
@@ -1554,13 +1596,13 @@ for (folder in folder_list) {
 ### PENDING: explain the parameters
 
 ## target setup
-country <- "CA"  # "US" or "CA"
+country <- "US"  # "US" or "CA"
 # select state or run for all state
 # available state list for CA:
 # c("AB","BC","CA","MB","NB","NL","NS","ON","QC","SK")
 # available state list for US:
 # TBD
-state <- c("CA")# c("CA")
+state <- c("IL")# c("CA")
 # Please don't set "all_states" as TRUE, it will takes several hours to finish with a three-phases setup. 
 all_states <- FALSE
 
@@ -1575,16 +1617,19 @@ window_radius <- 3
 # days between different time phase, for smoothing
 total_days <- 365
 # the total length of the SEIRD timeseries, include the past and the future
-last_date_with_available_data <- Sys.Date()
 # set this to a past date to get a "past prediction"
-
+last_date_with_available_data <- Sys.Date()
 
 ## for sampling parameter
 n_sample <- 5000
 
 ## for data-driven parameter
-number_of_phase <- 4
+# the number of time phase. Now with pinned policy it must be 3.
+number_of_phase <- 3
+# the optimization radius of the policy date
+opt_radius_of_policydate <- 5
 # the initial value of data-driven parameters
+### warning: the initial value and limit of phase_begin will be overwrite as policy date state by state.
 # error is not used
 initial_dd_parameter <- c(
   # log10_I_initial = 1,
