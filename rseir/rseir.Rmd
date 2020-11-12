@@ -1408,158 +1408,57 @@ make_plots <- function(state_ac)
        plot = temp_plot,
        path = plots_by_state_path)
   
-  ## create a folder that copy all the plots for the specipied state
-  ## so you can inspect the result for specific state more easily
-  # {
-  #   {
-  #     plots_by_state_path <- paste0("outputs/plots_by_state/", state_ac)
-  #     if (!file.exists(plots_by_state_path))
-  #       dir.create(plots_by_state_path)
-  #     #file.copy(from = , to = plots_by_state_path, overwrite = TRUE)
-  #     ## all variables in one plot
-  #     file.copy(
-  #       from = paste0(
-  #         "outputs/plots/all_variables/",
-  #         state_ac,
-  #         "_SEIRD_variables.png"
-  #       ),
-  #       to = plots_by_state_path,
-  #       overwrite = TRUE
-  #     )
-  #     
-  #     # cumulative I1, prediction Vs observed
-  #     file.copy(
-  #       from = paste0(
-  #         "outputs/plots/cumulative_I1/obs_and_pred/",
-  #         state_ac,
-  #         "_cumulative_I1.png"
-  #       ),
-  #       to = plots_by_state_path,
-  #       overwrite = TRUE
-  #     )
-  #     
-  #     # cumulative I1, observed data follow by future prediction
-  #     file.copy(
-  #       from = paste0(
-  #         "outputs/plots/cumulative_I1/obs_follow_by_pred/",
-  #         state_ac,
-  #         "_cumulative_I1_filtered.png"
-  #       ),
-  #       to = plots_by_state_path,
-  #       overwrite = TRUE
-  #     )
-  #     
-  #     # cumulative I2+I3 prediction Vs observed
-  #     if (obs_data_kit$hosp_flag == "cumulative")
-  #     {
-  #       file.copy(
-  #         from = paste0(
-  #           "outputs/plots/cumulative_I2_plus_I3/obs_and_pred/",
-  #           state_ac,
-  #           "_cumulative_I2_plus_I3.png"
-  #         ),
-  #         to = plots_by_state_path,
-  #         overwrite = TRUE
-  #       )
-  #     }
-  # 
-  #     # cumulative D prediction Vs observed
-  #     file.copy(
-  #       from = paste0(
-  #         "outputs/plots/cumulative_D/obs_and_pred/",
-  #         state_ac,
-  #         "_cumulative_D.png"
-  #       ),
-  #       to = plots_by_state_path,
-  #       overwrite = TRUE
-  #     )
-  #     
-  #     for (v_name in c("I1", "I2_plus_I3", "D"))
-  #     {
-  #       # prediction*test_fraction VS observed
-  #       file.copy(
-  #         from = paste0(
-  #           "outputs/plots/",
-  #           v_name,
-  #           "_increase/obs_and_pred/",
-  #           state_ac,
-  #           "_",
-  #           v_name,
-  #           "_increase.png"
-  #         ),
-  #         to = plots_by_state_path,
-  #         overwrite = TRUE
-  #       )
-  #       
-  #       # zoomed version
-  #       file.copy(
-  #         from = paste0(
-  #           "outputs/plots/",
-  #           v_name,
-  #           "_increase/obs_follow_by_pred/",
-  #           state_ac,
-  #           "_",
-  #           v_name,
-  #           "_increase_zoomed.png"
-  #         ),
-  #         to = plots_by_state_path,
-  #         overwrite = TRUE
-  #       )
-  #       
-  #       # observed data follow by future prediction
-  #       file.copy(
-  #         from = paste0(
-  #           "outputs/plots/",
-  #           v_name,
-  #           "_increase/obs_follow_by_pred/",
-  #           state_ac,
-  #           "_",
-  #           v_name,
-  #           "_increase_ofbp.png"
-  #         ),
-  #         to = plots_by_state_path,
-  #         overwrite = TRUE
-  #       )
-  #     }
-  #     
-  #     for (v_name in c("S", "E", "I1", "I2", "I3", "R", "D"))
-  #     {
-  #       file.copy(
-  #         from = paste0(
-  #           "outputs/plots/all_variables_one_by_one/",
-  #           v_name,
-  #           "_current/",
-  #           state_ac,
-  #           "_",
-  #           v_name,
-  #           "_current.png"
-  #         ),
-  #         to = plots_by_state_path,
-  #         overwrite = TRUE
-  #       )
-  #     }
-  #     
-  #     if (obs_data_kit$hosp_flag == "current")
-  #     {
-  #       file.copy(
-  #         from = paste0(
-  #           "outputs/plots/current_I2_plus_I3/",
-  #           state_ac,
-  #           "_I2_plus_I3_current.png"
-  #         ),
-  #         to = plots_by_state_path,
-  #         overwrite = TRUE
-  #       )
-  #     }
-  #     
-  #     ## the plot of beta1t
-  #     file.copy(
-  #       from = paste0("outputs/plots/beta1t/", state_ac, "_beta1t_and_dd_para.png"),
-  #       to = plots_by_state_path,
-  #       overwrite = TRUE
-  #     )
-  #   }
-  # }
+  ## compareing rseir and pyseir
+  # for US only
+  if (country == "US")
+  {
+    pyseir_res <-
+      readRDS("inputs/pyseir_output/pyseir_res_20201111.rds") %>%
+      filter(State == state_info$Name[state_info$alpha_code == state_ac])
+    
+    
+    temp_plot <-
+      ggplot() +
+      geom_line(aes(
+        y = SEIRD_pred$I1_increase[-1] * test_fraction,
+        x = SEIRD_pred$date[-1],
+        color = "rseir"
+      )) +
+      geom_point(aes(y = obs_data_kit$I1_obs, x = reference_date + obs_data_kit$I1_obsdays,color = "smoothed_observed")) +
+      geom_line(aes(x = pyseir_res$Date[-1], y = pyseir_res$I1_increase[-1],color =
+                  "pyseir")) +
+      labs(
+        x = "Date",
+        y = "I1_increase",
+        title = paste0(
+          state_ac,
+          " I1_increase, Predicted*test_fraction VS observed Vs pyseir"
+        ),
+        subtitle = paste0(
+          "number of phases=",
+          number_of_phase,
+          "   test_fraction=",
+          test_fraction
+        ),
+        color = "source"
+      ) +
+      scale_color_manual(values = c(
+        "smoothed_observed" = "blue",
+        "rseir" = "red",
+        "pyseir" = "green"
+      ))
+    
+    temp_plot <- Add_timestamp_vline(temp_plot)
+    ggsave(
+      glue("{country}_{state_ac}_I1_increase_rseir_vs_pyseir.png"),
+      plot = temp_plot,
+      path = plots_by_state_path
+    )
+  }
+
+  
+  
+  
 }
 ### the code below is for debug
 ## replot
@@ -1602,7 +1501,7 @@ country <- "US"  # "US" or "CA"
 # c("AB","BC","CA","MB","NB","NL","NS","ON","QC","SK")
 # available state list for US:
 # TBD
-state <- c("IL")# c("CA")
+state <- "IL" #c("CA","FL","NY")# c("CA")
 # Please don't set "all_states" as TRUE, it will takes several hours to finish with a three-phases setup. 
 all_states <- FALSE
 
