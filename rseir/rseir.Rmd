@@ -38,6 +38,8 @@ To update them, download the corresponding csv file, rename it and place it in t
 library(tidyverse)
 library(deSolve)
 library(glue)
+library(foreach)
+library(doParallel)
 
 
 #### rpyseir
@@ -1500,7 +1502,7 @@ country <- "US"  # "US" or "CA"
 # available state list for CA:
 # c("AB","BC","CA","MB","NB","NL","NS","ON","QC","SK")
 # available state list for US:
-# TBD
+# c("AL","AK","AZ","AR","CA","CO","CT","DE","DC","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH"",NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY")
 state <- "IL" #c("CA","FL","NY")# c("CA")
 # Please don't set "all_states" as TRUE, it will takes several hours to finish with a three-phases setup. 
 all_states <- FALSE
@@ -1589,5 +1591,6 @@ beepr::beep(sound = 1, expr = NULL)
 ```
 
 
+c("AL","AK","AZ","AR","CA","CO","CT","DE","DC","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH"",NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY")
 
 

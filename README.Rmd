@@ -40,6 +40,12 @@ Rseir is developed by me(QingXuan Kong), as part of the Educational Research pro
 
 ## updata history
 
+### 20201111
+Add the old pyseir result back to 20200720 and add a plot comparing the pyseir result and mine.
+
+### 202010-11
+Too busy for update documentation...
+
 ### 20201013
 The two prgram for USA and Canada are merge into one. A country parameter is added in the setup parameter list.
 
