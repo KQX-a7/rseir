@@ -41,9 +41,9 @@ Rseir is developed by me(QingXuan Kong), as part of the Educational Research pro
 ## updata history
 
 ### 20201111
-Add the old pyseir result back to 20200720 and add a plot comparing the pyseir result and mine.
+Add a plot comparing the rseir result and the old pyseir result back to 20200720.
 
-### 202010-11
+### 20201011
 Too busy for update documentation...
 
 ### 20201013
