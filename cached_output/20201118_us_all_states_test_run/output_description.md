@@ -1,0 +1,23 @@
+---
+title: "output_description"
+author: "QingXuan Kong"
+date: "2020/11/18"
+output:
+      html_document:
+        keep_md: true
+---
+
+
+
+### time
+Generated on 20201118.
+
+The observed data is from Covid-act-now, last update on around 20201001.
+
+The pyseir result (green line) is generated on around 20200715.
+
+### parameters details
+number of phase:3
+
+variables used for score calculation: case(I1), hospitalization(I2+I3)
+

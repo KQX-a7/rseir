@@ -23,7 +23,7 @@ Rseir is developed by me(QingXuan Kong), as part of the Educational Research pro
 
 ![CA_D_increase_zoomed](cached_output/20201013/outputs/CA/plots_by_state/CA/CA_CA_D_increase_zoomed.png)
 
-## User guied
+## User guide
 * Now it could run for both USA and Canada data, just go to the corresponding folder, open the rseir.Rmd and run according to the instruction.
 
 * To run the program, first run "## the functions" chunk to load the functions, then run "## the main script".
@@ -37,6 +37,14 @@ Rseir is developed by me(QingXuan Kong), as part of the Educational Research pro
 * If you are looking for plots for a specific state, go to "outputs/plots_by_state". If you are looking for plots for a specific type, go to "outputs/plots".
 
 ## updata history
+
+### 20201118
+I1_and_hosp plot update.
+
+Add a plot that shows put the I1 comparison plot and hospitalization comparison side by side, which illustrate an inconsistency between the observed data and the underlie model assumption.
+
+### 20201011
+Too busy for update documentation...
 
 ### 20201013
 The two prgram for USA and Canada are merge into one. A country parameter is added in the setup parameter list.
