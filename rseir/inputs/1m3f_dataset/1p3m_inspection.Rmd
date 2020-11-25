@@ -1,0 +1,98 @@
+---
+title: "1p3m_inspection"
+author: "QingXuan Kong"
+date: "2020/11/24"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## library
+```{r}
+library(tidyverse)
+library(patchwork)
+```
+
+## import
+```{r}
+raw_data_1p3m <- read_csv("cases.csv")
+raw_data_can <- read_csv("../US_timeseries.csv", col_types = "cDcccciiiiiiiiiiiiii")
+
+
+reference_date <- parse_date("2020-01-01")
+mydata_can <- raw_data_can %>%
+  filter(aggregate_level == "state") %>% 
+  group_by(state) %>% 
+  mutate(cases_increase = cases - lag(cases, n = 1)) %>%
+  mutate(deaths_increase = deaths - lag(deaths, n = 1))
+
+mydata_1m3p <- raw_data_1p3m %>% 
+  group_by(confirmed_date,state_name) %>% 
+  summarise(case_increase=sum(confirmed_count),death_increase=sum(death_count))
+
+```
+
+## inspection
+```{r}
+raw_data_1p3m %>% 
+  filter(state_name=="IL",county_name=="Cook") %>% 
+  ggplot() +
+  geom_line(aes(x=confirmed_date,y=confirmed_count))
+
+
+mydata_can %>% 
+  filter(state="IL")
+  ggplot() +
+  geom_line(aes(x=date,y=cases_increase))
+
+  
+  
+mean(raw_data_1p3m$recovered_count<0)
+
+## where are these negatives?
+raw_data_1p3m %>% 
+  select(-case_id,-FIPS,-recovered_count) %>% 
+  group_by(state_name,county_name) %>% 
+  summarise(nega_case=sum(confirmed_count<0),nega_death=sum(death_count<0)) %>% 
+  filter(nega_case!=0,nega_death!=0) %>% 
+  View()
+# they are correction, I guess?
+
+## 1p3m vs can
+plot_1m3p <- mydata_1m3p %>% 
+  filter(state_name=="IL") %>% 
+  ggplot() +
+  geom_line(aes(x=confirmed_date,y=case_increase)) +
+  coord_cartesian(ylim = c(0, 15000))
+
+plot_can <- mydata_can %>% 
+  filter(state=="IL") %>% 
+  ggplot() +
+  geom_line(aes(x=date,y=cases_increase)) +
+  coord_cartesian(ylim = c(0, 15000))
+
+plot_1m3p+plot_can
+# identical?
+temp_1m3p <-  mydata_1m3p %>% 
+  filter(state_name=="IL") %>% 
+  filter(confirmed_date>parse_date("2020-04-01"),confirmed_date<parse_date("2020-09-01")) %>% 
+  .$case_increase
+
+temp_can <- mydata_can %>% 
+  filter(state=="IL") %>% 
+  filter(date>parse_date("2020-04-01"),date<parse_date("2020-09-01")) %>% 
+  .$cases_increase
+
+identical(temp_1m3p,temp_can) #F
+(temp_1m3p-temp_can) %>% View() # diff up to 200
+``` 
+
+## transform
+```{r}
+mydata_1p3m <- raw_data_1p3m %>% 
+  select(confi)
+```
+
