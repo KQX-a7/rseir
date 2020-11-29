@@ -38,6 +38,14 @@ Rseir is developed by me(QingXuan Kong), as part of the Educational Research pro
 
 ## updata history
 
+### 20201129
+data_source parameter
+a new observed dataset source was added. You can choose your observed dataset by changing the data_source parameter.
+
+variable_used_in_score parameter
+Now you can choose whether to use cases, hosp or deaths in score calculation by changing use_case, use_hosp and use_death parameter.
+Notice that the 1m3f dataset don't have hosp data, so for data_source="1m3f", use_hosp must be F.
+
 ### 20201118
 I1_and_hosp plot update.
 

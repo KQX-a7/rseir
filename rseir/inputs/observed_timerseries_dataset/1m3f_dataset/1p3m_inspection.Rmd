@@ -96,3 +96,51 @@ mydata_1p3m <- raw_data_1p3m %>%
   select(confi)
 ```
 
+## plot all
+```{r}
+raw_data_1m3f <- read_csv("US_timeseries.csv")
+
+mydata_1m3f <- raw_data_1m3f %>% 
+  group_by(confirmed_date,state_name) %>% 
+  summarise(cases_increase=sum(confirmed_count),deaths_increase=sum(death_count))
+
+for (s_name in unique(mydata_1m3f$state_name)) {
+  temp_plot <- mydata_1m3f %>%
+    filter(state_name == s_name) %>%
+    ggplot() + geom_point(aes(x = confirmed_date, y = cases_increase))
+  
+  ggsave(glue("{s_name}_cases.png"),
+         plot = temp_plot,
+         path = "outputs/cases/")
+  
+  temp_plot <- mydata_1m3f %>%
+    filter(state_name == s_name) %>%
+    ggplot() + geom_point(aes(x = confirmed_date, y = deaths_increase))
+  
+  ggsave(glue("{s_name}_deaths.png"),
+         plot = temp_plot,
+         path = "outputs/deaths/")
+}
+
+```
+
+## what's these negative?
+```{r}
+raw_data_1m3f %>% 
+  select(-case_id,-FIPS,-recovered_count) %>% 
+  group_by(state_name,county_name) %>% 
+  summarise(nega_case=sum(confirmed_count<0),nega_death=sum(death_count<0)) %>% 
+  filter(nega_case!=0|nega_death!=0) %>% 
+  View()
+
+raw_data_1m3f %>% 
+  mutate(ce1=lag(confirmed_count,1),ce2=lag(confirmed_count,2),cl1=lead(confirmed_count,1),cl2=lead(confirmed_count,2)) %>% 
+  filter(confirmed_count< -100|death_count< -100) %>% 
+  View()
+
+raw_data_1m3f %>% 
+  filter(state_name=="LA") %>% 
+  View()
+```
+
+

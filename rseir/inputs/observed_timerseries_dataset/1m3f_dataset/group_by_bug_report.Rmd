@@ -1,0 +1,75 @@
+---
+title: "group_by_bug"
+author: "QingXuan Kong"
+date: "2020/11/25"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+
+```{r}
+target_timeseries <- read_csv("US_timeseries.csv") %>%
+  filter(
+    state_name == "IL"
+  ) %>%
+  group_by(confirmed_date) %>%
+  summarise(
+    cases_increase = sum(confirmed_count),
+    deaths_increase = sum(death_count)
+  ) %>%
+  arrange(confirmed_date) %>%
+  mutate(
+    cumulative_cases = cumsum(cases_increase),
+    cumulative_deaths = cumsum(deaths_increase)
+  ) 
+
+head(target_timeseries)
+
+target_timeseries %>% 
+  select(-confirmed_date)
+
+## subset again, only take those column used later.
+target_timeseries <- target_timeseries %>%
+  select(state,
+         days_to_ref,
+         cases_increase,
+         deaths_increase,)
+
+## smooth
+temp <- target_timeseries %>%
+  mutate(across(
+    !c(state, days_to_ref),
+    mean)
+  )
+```
+
+
+
+
+```{r}
+temp_iris <- iris %>% 
+  group_by(Species) %>% 
+  summarise(Sepal_length_sum=sum(Sepal.Length)) %>% 
+  mutate(cumulative_Sepal_length_sum=cumsum(Sepal_length_sum))
+
+head(temp_iris)
+
+temp_iris %>% 
+  select(-Species)
+  
+temp2 <- temp %>% 
+  select(Species2,Sepal.Length)
+```
+
+```{r}
+temp %>% 
+  mutate(cumu_S=cumsum(Sepal.Length))
+```
+
