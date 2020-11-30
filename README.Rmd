@@ -40,6 +40,9 @@ Rseir is developed by me(QingXuan Kong), as part of the Educational Research pro
 
 ## updata history
 
+### 20201130
+change score from sum of error to mean of error. (for balance)
+
 ### 20201129
 data_source parameter
 a new observed dataset source was added. You can choose your observed dataset by changing the data_source parameter.
