@@ -71,6 +71,7 @@ rpyseir <- function()
     ## the optimizer
     ### notice: Minimization function is different. nlm doesn't take limits, try optim?
     print(glue("optim for {state_ac} begin, {which(state==state_ac)}/{length(state)}"))
+    print(Sys.time())
     opt_res <-
       optim(
         par = initial_dd_parameter,
@@ -88,7 +89,6 @@ rpyseir <- function()
     {
       print(glue("optim for {state_ac} is successful"))
       print(glue("after {opt_res$counts[1]} calls to the score function"))
-      print("**************")
     }
     else if (opt_res$convergence == 1)
     {
@@ -96,14 +96,12 @@ rpyseir <- function()
       print(glue("after {opt_res$counts[1]} calls to the score function"))
       print(glue("message from optim: {opt_res$message}"))
       print("The optim result should be reasonable. Change the initial value or increase the iteration limit might improve the optim result.")
-      print("**************")
     }
     else
     {
       print(glue("optim for {state_ac} encounter error, error code: {opt_res$convergence}"))
       print(glue("after {opt_res$counts[1]} calls to the score function"))
       print(glue("message from optim: {opt_res$message}"))
-      print("**************")
     }
     
     saveRDS(opt_res, 
@@ -130,6 +128,9 @@ rpyseir <- function()
     ### This will come in handy if you want to change the label of my plot
     ### In that case, you can just tweak make_plot(state_ac) and run it, without running rpyseir() again
     make_plots(state_ac)
+    print(glue("plot create at {Sys.time()}"))
+    print("**************")
+    
   }
   
 }
@@ -624,7 +625,7 @@ score_function <- function(dd_para, s_para, obs_data_kit)
           yright = 0
         )$y * test_fraction
       # calculation the chi-square score
-      chi2_I1 <- sum((I1_pred - I1_obs) ^ 2 / I1_std ^ 2)
+      chi2_I1 <- mean((I1_pred - I1_obs) ^ 2 / I1_std ^ 2)
       score <- score + chi2_I1
     }
 
@@ -655,7 +656,7 @@ score_function <- function(dd_para, s_para, obs_data_kit)
           )$y * hosp_fraction
       }
       chi2_hosp <-
-        sum((hosp_pred - hosp_obs) ^ 2 / hosp_std ^ 2)
+        mean((hosp_pred - hosp_obs) ^ 2 / hosp_std ^ 2)
       score <- score + chi2_hosp
     }
 
@@ -672,7 +673,7 @@ score_function <- function(dd_para, s_para, obs_data_kit)
           yright = 0
         )$y
 
-      chi2_D <- sum((D_pred - D_obs) ^ 2 / D_std ^ 2)
+      chi2_D <- mean((D_pred - D_obs) ^ 2 / D_std ^ 2)
       score <- score + chi2_D
     }
     
@@ -1744,7 +1745,7 @@ dd_to_supt <- function(dd_para)
   return(supt_para)
 }
 
-
+beep()
 ```
 ## for debug: replot
 ```{r}
@@ -1753,6 +1754,8 @@ for (state_ac in state) {
   print(state_ac)
 }
 beep()
+
+temp_pred <- readRDS(file.choose())
 ```
 
 
@@ -1772,7 +1775,7 @@ data_source <- "1m3f" # "can", "1m3f" or "c19ca"
 # c("AB","BC","CA","MB","NB","NL","NS","ON","QC","SK")
 # available state list for US:
 # c("AL","AK","AZ","AR","CA","CO","CT","DE","DC","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY")
-state <- "IL" # c("CA")
+state <- c("IL","NY", "FL", "CA") # c("CA")
 # Please don't set "all_states" as TRUE, it will takes several hours to finish with a three-phases setup. 
 all_states <- FALSE
 
@@ -1854,7 +1857,7 @@ initial_dd_parameter <- c(
   # errordef=0.5,
 )
 # upper/lower bound, needed in optimization
-dd_parameter_upper <- c(0.4,1,80,4.5,40,1.2,100,2,100,2)
+dd_parameter_upper <- c(1,1,80,4.5,40,1.2,100,2,100,2)
 dd_parameter_lower <- c(0.02,0.25,10,2,5,0.2,14,0.1,14,0.1)
 
 print(system.time(rpyseir()))
@@ -1862,7 +1865,7 @@ print(system.time(rpyseir()))
 ### the code below is for debug
 ## replot
 # make_plots(state_ac = state)
-beepr::beep(sound = 1, expr = NULL)
+beep(sound = 1, expr = NULL)
 ## to add phases: change setup_parameters, build_beta1t, vline function in make plot
 ```
 

@@ -1,0 +1,36 @@
+---
+title: "replot"
+author: "QingXuan Kong"
+date: "2020/11/29"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+## CA all variable no log
+```{r}
+CA_pred <- read_csv("D:\\Programing\\Data_and_project\\R\\projects\\rseir\\cached_output\\20201021\\radius_3_NoD_p_3_ph2d_lt100_CA\\CA\\SEIRD_data\\CA_CA_SEIRD_pred.csv")
+
+CA_pred %>%
+  select(1:9) %>%
+  select(-S,-R) %>% 
+  pivot_longer(
+    cols = c("E", "I1", "I2", "I3", "D"),
+    names_to = "variables",
+    values_to = "values"
+  ) %>%
+  select(date, variables, values) %>%
+  ggplot() +
+  geom_line(aes(x = date,
+                y = values,
+                color = variables)) +
+  labs(title = paste0("SEIRD for CA")) 
+  
+```
+
