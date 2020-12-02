@@ -34,3 +34,10 @@ CA_pred %>%
   
 ```
 
+c("GA","HI","LA","NJ","TX")
+
+## requested SERID plot 20201201
+```{r}
+
+```
+

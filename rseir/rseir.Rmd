@@ -58,15 +58,48 @@ rpyseir <- function()
     observed_data_kit <-
       parse_observed_data_for_score_calculation(state_ac)
     
-    ### 20201103 pin policy update
-    initial_dd_parameter[5] <- as.integer(sampling_para$lockdown_date - reference_date)
-    dd_parameter_upper[5] <- initial_dd_parameter[5]+opt_radius_of_policydate
-    dd_parameter_lower[5] <- initial_dd_parameter[5]-opt_radius_of_policydate
-    
-    initial_dd_parameter[7] <- as.integer(sampling_para$reopen_date - reference_date)
-    dd_parameter_upper[7] <- initial_dd_parameter[7]+opt_radius_of_policydate
-    dd_parameter_lower[7] <- initial_dd_parameter[7]-opt_radius_of_policydate
-    ###
+    ## The overwrite process
+    if (overwrite_initial_dd_parameter == T) {
+      ### 20201103 pin policy update
+      # initial_dd_parameter[5] <-
+      #   as.integer(sampling_para$lockdown_date - reference_date)
+      # dd_parameter_upper[5] <-
+      #   initial_dd_parameter[5] + opt_radius_of_policydate
+      # dd_parameter_lower[5] <-
+      #   initial_dd_parameter[5] - opt_radius_of_policydate
+      # 
+      # initial_dd_parameter[7] <-
+      #   as.integer(sampling_para$reopen_date - reference_date)
+      # dd_parameter_upper[7] <-
+      #   initial_dd_parameter[7] + opt_radius_of_policydate
+      # dd_parameter_lower[7] <-
+      #   initial_dd_parameter[7] - opt_radius_of_policydate
+      ###
+      
+      ### 20201130 pin date update
+      initial_dd_parameter[5] <-
+        as.integer(sampling_para$p1_to_p2_date - reference_date)
+      dd_parameter_upper[5] <-
+        initial_dd_parameter[5] + opt_radius_of_policydate
+      dd_parameter_lower[5] <-
+        initial_dd_parameter[5] - opt_radius_of_policydate
+
+      initial_dd_parameter[7] <-
+        as.integer(sampling_para$p2_to_p3_date - reference_date)
+      dd_parameter_upper[7] <-
+        initial_dd_parameter[7] + opt_radius_of_policydate
+      dd_parameter_lower[7] <-
+        initial_dd_parameter[7] - opt_radius_of_policydate
+      
+      initial_dd_parameter[9] <-
+        as.integer(sampling_para$p3_to_p4_date - reference_date)
+      dd_parameter_upper[9] <-
+        initial_dd_parameter[9] + opt_radius_of_policydate
+      dd_parameter_lower[9] <-
+        initial_dd_parameter[9] - opt_radius_of_policydate
+      
+    }
+    ## end of the overwrite process
     
     ## the optimizer
     ### notice: Minimization function is different. nlm doesn't take limits, try optim?
@@ -79,7 +112,7 @@ rpyseir <- function()
         gr = NULL,
         s_para = sampling_para,
         obs_data_kit = observed_data_kit,
-        method = "L-BFGS-B",
+        method = "L-BFGS-B", #"L-BFGS-B" #"Nelder-Mead"
         lower = dd_parameter_lower,
         upper = dd_parameter_upper
       )
@@ -151,13 +184,20 @@ get_sampling_parameters <- function(state_ac, n_sample = 5000)
   # this is used to calculate another parameter
   hospitalization_rate_general = rnorm_min0(mu = 0.02, sd = 0.01)
   
+  target_info <- state_info %>%
+    filter(alpha_code == state_ac)
+  
   para_list <- list(
     # basis information
-    population =
-      state_info$population[which(state_info$alpha_code == state_ac)],
-    state_name = state_info$Name[which(state_info$alpha_code == state_ac)],
-    lockdown_date = state_info$lock_down_date[which(state_info$alpha_code == state_ac)],
-    reopen_date = state_info$reopen_date[which(state_info$alpha_code == state_ac)],
+    population = target_info$population,
+    state_name = target_info$Name, 
+    p1_to_p2_date = target_info$p1_to_p2_date,
+    p2_to_p3_date = target_info$p2_to_p3_date,
+    p3_to_p4_date = target_info$p3_to_p4_date,
+    ### pin_date updatec 20201130
+    # lockdown_date = state_info$lock_down_date[which(state_info$alpha_code == state_ac)],
+    # reopen_date = state_info$reopen_date[which(state_info$alpha_code == state_ac)],
+    
     
     ### notice: the SEIRD initial value setup is moved to get_SEIRD_timeseries()
     
@@ -596,8 +636,16 @@ score_function <- function(dd_para, s_para, obs_data_kit)
   t0 <- dd_para[3]
   
   ### 20201103 pin policy update
-  # supt_para <- dd_para[-(1:3)]
-  supt_para <- dd_to_supt(dd_para)
+  if (overwrite_initial_dd_parameter == T)
+  {
+    supt_para <- dd_to_supt(dd_para)
+  }
+  else
+  {
+    supt_para <- dd_para[-(1:3)]
+  }
+
+
   ###
   
   # this beta1t is a vector storing the beta1 value on day 1:total_days
@@ -953,8 +1001,14 @@ final_result_generation <- function(state_ac,dd_para,s_para,obs_data_kit)
   # it represent/determined the number of phases
   
   ### 20201103 pin policy update
-  # supt_para <- dd_para[-(1:3)]
-  supt_para <- dd_to_supt(dd_para)
+  if (overwrite_initial_dd_parameter == T)
+  {
+    supt_para <- dd_to_supt(dd_para)
+  }
+  else
+  {
+    supt_para <- dd_para[-(1:3)]
+  }
   ###
   
   param_set$beta1t <- build_beta1t(supt_para, s_para$delta)
@@ -1019,8 +1073,14 @@ make_plots <- function(state_ac)
         last_date_with_available_data)
   
   ### 20201103 pin policy update
-  # supt_para <- dd_para[-(1:3)]
-  supt_para <- dd_to_supt(dd_para)
+  if (overwrite_initial_dd_parameter == T)
+  {
+    supt_para <- dd_to_supt(dd_para)
+  }
+  else
+  {
+    supt_para <- dd_para[-(1:3)]
+  }
   ###
   
   ## need a function to add the vertical lines bases on the number of phases
@@ -1732,15 +1792,43 @@ for (folder in folder_list) {
 }
 
 ### 20201103 pin policy update
+# dd_to_supt <- function(dd_para)
+# {
+#   supt_para <- dd_para[-(1:3)]
+#   supt_para[2] <- dd_para[5]-dd_para[3] ## lockdown,subtract by t0
+#   supt_para[4] <- dd_para[7]-dd_para[5] ## reopen, to
+#   
+#   if(supt_para[2]<0 || supt_para[4]<0)
+#   {
+#     print("warning: negaitive duration")
+#   }
+#   return(supt_para)
+# }
+
 dd_to_supt <- function(dd_para)
 {
   supt_para <- dd_para[-(1:3)]
-  supt_para[2] <- dd_para[5]-dd_para[3] ## lockdown,subtract by t0
-  supt_para[4] <- dd_para[7]-dd_para[5] ## reopen, to
   
-  if(supt_para[2]<0 || supt_para[4]<0)
+  if (number_of_phase >= 2) {
+    supt_para[2] <- dd_para[5] - dd_para[3]
+  }
+  
+  if (number_of_phase >= 3)
   {
-    print("warning: negaitive duration")
+    supt_para[4] <- dd_para[7] - dd_para[5]
+    if (supt_para[2] < 0 || supt_para[4] < 0)
+    {
+      print("warning: negaitive duration")
+    }
+  }
+  
+  if (number_of_phase >= 4)
+  {
+    supt_para[6] <- dd_para[9] - dd_para[7]
+    if (supt_para[4] < 0 || supt_para[6] < 0)
+    {
+      print("warning: negaitive duration")
+    }
   }
   return(supt_para)
 }
@@ -1770,20 +1858,19 @@ temp_pred <- readRDS(file.choose())
 country <- "US"  # "US" or "CA"
 data_source <- "1m3f" # "can", "1m3f" or "c19ca"
 
+
 # select state or run for all state
 # available state list for CA:
 # c("AB","BC","CA","MB","NB","NL","NS","ON","QC","SK")
 # available state list for US:
 # c("AL","AK","AZ","AR","CA","CO","CT","DE","DC","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY")
-state <- c("IL","NY", "FL", "CA") # c("CA")
+state <- c("AL","AK","AZ","AR","CA","CO","CT","DE","DC","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY") #c("IL","NY", "FL", "CA") # c("CA")
 # Please don't set "all_states" as TRUE, it will takes several hours to finish with a three-phases setup. 
 all_states <- FALSE
 
 ## basic setup
 # state_info <- get_state_info()
-state_info <- read_csv(glue("inputs/{country}_state_info.csv"), 
-    col_types = cols(lock_down_date = col_date(format = "%Y/%m/%d"), 
-        reopen_date = col_date(format = "%Y/%m/%d")))
+state_info <- read_csv(glue("inputs/{country}_state_info.csv"))
 reference_date <- parse_date("2020-01-01")
 # reference_date is needed in optimizing the t0, the beginning date of the pandemic
 days_between_phases <- 14
@@ -1804,10 +1891,12 @@ use_hosp <- F   # hosp data is not available for 1m3f dataset, please set as F i
 use_death <- T 
 
 ## for data-driven parameter
+# use date (pin-policy update) or use duration?
+overwrite_initial_dd_parameter <- T
 # the number of time phase. Now with pinned policy it must be 3.
-number_of_phase <- 3
+number_of_phase <- 4
 # the optimization radius of the policy date
-opt_radius_of_policydate <- 15
+opt_radius_of_policydate <- 30
 # the initial value of data-driven parameters
 ### warning: the initial value and limit of phase_begin will be overwrite as policy date state by state.
 # error is not used
@@ -1830,14 +1919,14 @@ initial_dd_parameter <- c(
   # error_R0=0.05,
   # eps1 = 1
   
-  phase1_duration = 20,
+  phase1_duration = 45, #20
   # limit_phase1_duration=[5, 40],
   # error_phase1_duration=1,
   eps2 = 0.3,
   # limit_eps2=[0.20, 1.2],
   # error_eps2=0.005,
   
-  phase2_duration = 30,
+  phase2_duration = 30, #30
   # supposed to be number of days between second and third ramps
   # limit_phase2_duration=[14, 100],
   # error_t_delta_phases=1,
@@ -1846,7 +1935,7 @@ initial_dd_parameter <- c(
   # error_eps3=0.005,
   
   # the fourth phase
-  phase3_duration = 60,
+  phase3_duration = 90, #60
   # limit_phase2_duration=[14, 100],
   # error_t_delta_phases=1,
   eps4 = 0.5
@@ -1857,7 +1946,7 @@ initial_dd_parameter <- c(
   # errordef=0.5,
 )
 # upper/lower bound, needed in optimization
-dd_parameter_upper <- c(1,1,80,4.5,40,1.2,100,2,100,2)
+dd_parameter_upper <- c(0.5,1,80,4.5,60,1.2,100,2,120,2)
 dd_parameter_lower <- c(0.02,0.25,10,2,5,0.2,14,0.1,14,0.1)
 
 print(system.time(rpyseir()))
