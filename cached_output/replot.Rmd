@@ -11,6 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
+library(glue)
 ```
 
 ## CA all variable no log
@@ -34,10 +35,117 @@ CA_pred %>%
   
 ```
 
-c("GA","HI","LA","NJ","TX")
+
 
 ## requested SERID plot 20201201
 ```{r}
+state_list <- c("GA","HI","LA","NJ","TX")
+
+for(state_ac in state_list)
+{
+  folder_path <-
+    glue(
+      "20201118_us_all_states_test_run/SEIRD_plots_for_states_with_good_prediction/{state_ac}"
+    )
+  if (!file.exists(folder_path))
+  {
+    dir.create(folder_path, recursive = TRUE)
+  }
+  
+  file.copy(
+    from = glue(
+      "20201118_us_all_states_test_run/US/plots_by_state/{state_ac}/US_{state_ac}_I1_and_hosp.png"
+    ),
+    to = folder_path,
+    overwrite = T
+  )
+  
+  target_pred <-
+    read_csv(
+      glue(
+        "20201118_us_all_states_test_run/US/SEIRD_data/US_{state_ac}_SEIRD_pred.csv"
+      )
+    )
+  color_map <-
+    c(
+      "Susceptible (S)" = "black",
+      "Recovered (R)" = "green",
+      "Mild infected (I1)" = "red",
+      "Hospitalized infected (I2)" = "orange",
+      "ICU infected (I3)" = "brown",
+      "Exposed (E)" = "blue",
+      "Deceased (D)" = "purple"
+    )
+  
+  ## all
+  temp_plot <- ggplot(target_pred, aes(x = date)) +
+    geom_line(aes(y = S, color = "Susceptible (S)")) +
+    geom_line(aes(y = E, color = "Exposed (E)")) +
+    geom_line(aes(y = I1, color = "Mild infected (I1)")) +
+    geom_line(aes(y = I2, color = "Hospitalized infected (I2)")) +
+    geom_line(aes(y = I3, color = "ICU infected (I3)")) +
+    geom_line(aes(y = R, color = "Recovered (R)")) +
+    geom_line(aes(y = D, color = "Deceased (D)")) +
+    labs(
+      x = "Date",
+      y = "Number of people",
+      title = glue("SEIRD of {state_ac}"),
+      color = "Legend",
+      caption = glue("created at {Sys.time()}")
+    ) +
+    scale_color_manual(values = color_map)
+  
+  ggsave(
+    filename = glue("SEIRD_of_{state_ac}.png"),
+    plot = temp_plot,
+    path = folder_path
+  )
+  
+  ## no S
+  temp_plot <- ggplot(target_pred, aes(x = date)) +
+    geom_line(aes(y = E, color = "Exposed (E)")) +
+    geom_line(aes(y = I1, color = "Mild infected (I1)")) +
+    geom_line(aes(y = I2, color = "Hospitalized infected (I2)")) +
+    geom_line(aes(y = I3, color = "ICU infected (I3)")) +
+    geom_line(aes(y = R, color = "Recovered (R)")) +
+    geom_line(aes(y = D, color = "Deceased (D)")) +
+    labs(
+      x = "Date",
+      y = "Number of people",
+      title = glue("SEIRD of {state_ac} withour S"),
+      color = "Legend",
+      caption = glue("created at {Sys.time()}")
+    ) +
+    scale_color_manual(values = color_map)
+  
+  ggsave(
+    filename = glue("SEIRD_of_{state_ac}_without_S.png"),
+    plot = temp_plot,
+    path = folder_path
+  )
+  
+  ## no S and R
+  temp_plot <- ggplot(target_pred, aes(x = date)) +
+    geom_line(aes(y = E, color = "Exposed (E)")) +
+    geom_line(aes(y = I1, color = "Mild infected (I1)")) +
+    geom_line(aes(y = I2, color = "Hospitalized infected (I2)")) +
+    geom_line(aes(y = I3, color = "ICU infected (I3)")) +
+    geom_line(aes(y = D, color = "Deceased (D)")) +
+    labs(
+      x = "Date",
+      y = "Number of people",
+      title = glue("SEIRD of {state_ac} without S and R"),
+      color = "Legend",
+      caption = glue("created at {Sys.time()}")
+    ) +
+    scale_color_manual(values = color_map)
+  
+  ggsave(
+    filename = glue("SEIRD_of_{state_ac}_without_S_and_R.png"),
+    plot = temp_plot,
+    path = folder_path
+  )
+}
 
 ```
 
