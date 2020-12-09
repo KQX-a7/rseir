@@ -1627,34 +1627,7 @@ make_plots <- function(state_ac)
     dir.create(plots_by_state_path)
   
   ### ploting begin
-  
-  ## all variables in one plot
-  temp_plot <- SEIRD_pred %>%
-    pivot_longer(
-      cols = c("S", "E", "I1", "I2", "I3", "R", "D"),
-      names_to = "variables",
-      values_to = "values"
-    ) %>%
-    select(date, variables, values) %>%
-    filter(values >= 1) %>%
-    ggplot() +
-    geom_line(aes(
-      x = date,
-      y = log10(values),
-      color = variables
-    )) +
-    labs(
-      title = paste0("SEIRD for ", state_ac),
-      subtitle = paste0("number of phases: ", number_of_phase)
-    )
-  
-  temp_plot <- Add_timestamp_vline(temp_plot)
-  
-  ggsave(glue("{country}_{state_ac}_SEIRD_variables.png"),
-         plot = temp_plot,
-         path = plots_by_state_path)
 
-  
   ## plot of cumulative, prediction Vs observed
   
   # cumulative I1,  prediction*test_fraction Vs observed
@@ -1989,23 +1962,7 @@ make_plots <- function(state_ac)
        plot = temp_plot,
        path = plots_by_state_path)
   
-  ## the current value of all variables, ploted one by one
-  for (v_name in c("S", "E", "I1", "I2", "I3", "R", "D"))
-  {
-    temp_plot <- ggplot(SEIRD_pred) +
-      geom_line(aes(x = date, y = SEIRD_pred[[v_name]]), color = "red") +
-      labs(
-        x = "Date",
-        y = paste0(v_name, "_current"),
-        title = paste0(state_ac, "Current value of ", v_name),
-        subtitle = paste0("number of phases=", number_of_phase)
-      )
-    
-    temp_plot <- Add_timestamp_vline(temp_plot)
-    ggsave(glue("{country}_{state_ac}_{v_name}_current.png"),
-       plot = temp_plot,
-       path = plots_by_state_path)
-  }
+
   
   ## the current value of I2+I3, prediction*hosp_fraction Vs observed
   ## for those state that used current_hospitalization instead of cumulative
@@ -2139,6 +2096,162 @@ make_plots <- function(state_ac)
 
 
   }
+  
+  ## the SEIRD plots
+  {
+    ## all variables in one plot, with log scale
+    {
+      temp_plot <- SEIRD_pred %>%
+        pivot_longer(
+          cols = c("S", "E", "I1", "I2", "I3", "R", "D"),
+          names_to = "variables",
+          values_to = "values"
+        ) %>%
+        select(date, variables, values) %>%
+        filter(values >= 1) %>%
+        ggplot() +
+        geom_line(aes(
+          x = date,
+          y = log10(values),
+          color = variables
+        )) +
+        labs(
+          title = paste0("SEIRD for ", state_ac),
+          subtitle = paste0("number of phases: ", number_of_phase)
+        )
+      
+      temp_plot <- Add_timestamp_vline(temp_plot)
+      
+      ggsave(
+        glue("{country}_{state_ac}_SEIRD_variables_with_log.png"),
+        plot = temp_plot,
+        path = plots_by_state_path
+      )
+    }
+    
+    ## the current value of all variables, ploted one by one
+    {
+      for (v_name in c("S", "E", "I1", "I2", "I3", "R", "D"))
+      {
+        temp_plot <- ggplot(SEIRD_pred) +
+          geom_line(aes(x = date, y = SEIRD_pred[[v_name]]), color = "red") +
+          labs(
+            x = "Date",
+            y = paste0(v_name, "_current"),
+            title = paste0(state_ac, "Current value of ", v_name),
+            subtitle = paste0("number of phases=", number_of_phase)
+          )
+        
+        temp_plot <- Add_timestamp_vline(temp_plot)
+        ggsave(
+          glue("{country}_{state_ac}_{v_name}_current.png"),
+          plot = temp_plot,
+          path = plots_by_state_path
+        )
+      }
+    }
+    
+    ### 20201208 mix_datasource_update. Add the plots requested by Chen
+    {
+      color_map <-
+        c(
+          "Susceptible (S)" = "black",
+          "Recovered (R)" = "green",
+          "Mild infected (I1)" = "red",
+          "Hospitalized infected (I2)" = "orange",
+          "ICU infected (I3)" = "brown",
+          "Exposed (E)" = "blue",
+          "Deceased (D)" = "purple"
+        )
+      
+      ## all variables in one plot, without log scale
+      {
+        temp_plot <- ggplot(SEIRD_pred, aes(x = date)) +
+          geom_line(aes(y = S, color = "Susceptible (S)")) +
+          geom_line(aes(y = E, color = "Exposed (E)")) +
+          geom_line(aes(y = I1, color = "Mild infected (I1)")) +
+          geom_line(aes(y = I2, color = "Hospitalized infected (I2)")) +
+          geom_line(aes(y = I3, color = "ICU infected (I3)")) +
+          geom_line(aes(y = R, color = "Recovered (R)")) +
+          geom_line(aes(y = D, color = "Deceased (D)")) +
+          labs(
+            x = "Date",
+            y = "Number of people",
+            title = glue("SEIRD of {state_ac}"),
+            color = "Legend",
+            caption = glue("created at {Sys.time()}")
+          ) +
+          scale_color_manual(values = color_map)
+        
+        temp_plot <- Add_timestamp_vline(temp_plot)
+        
+        ggsave(
+          filename = glue("{country}_{state_ac}_SEIRD_variables.png"),
+          plot = temp_plot,
+          path = plots_by_state_path
+        )
+      }
+
+      ## no S
+      {
+        temp_plot <- ggplot(SEIRD_pred, aes(x = date)) +
+          geom_line(aes(y = E, color = "Exposed (E)")) +
+          geom_line(aes(y = I1, color = "Mild infected (I1)")) +
+          geom_line(aes(y = I2, color = "Hospitalized infected (I2)")) +
+          geom_line(aes(y = I3, color = "ICU infected (I3)")) +
+          geom_line(aes(y = R, color = "Recovered (R)")) +
+          geom_line(aes(y = D, color = "Deceased (D)")) +
+          labs(
+            x = "Date",
+            y = "Number of people",
+            title = glue("SEIRD of {state_ac} withour S"),
+            color = "Legend",
+            caption = glue("created at {Sys.time()}")
+          ) +
+          scale_color_manual(values = color_map)
+        
+        temp_plot <- Add_timestamp_vline(temp_plot)
+        
+        ggsave(
+          filename = glue("{country}_{state_ac}_SEIRD_variables_without_S.png"),
+          plot = temp_plot,
+          path = plots_by_state_path
+        )
+      }
+
+  
+      ## no S and R
+      {
+        temp_plot <- ggplot(SEIRD_pred, aes(x = date)) +
+          geom_line(aes(y = E, color = "Exposed (E)")) +
+          geom_line(aes(y = I1, color = "Mild infected (I1)")) +
+          geom_line(aes(y = I2, color = "Hospitalized infected (I2)")) +
+          geom_line(aes(y = I3, color = "ICU infected (I3)")) +
+          geom_line(aes(y = D, color = "Deceased (D)")) +
+          labs(
+            x = "Date",
+            y = "Number of people",
+            title = glue("SEIRD of {state_ac} without S and R"),
+            color = "Legend",
+            caption = glue("created at {Sys.time()}")
+          ) +
+          scale_color_manual(values = color_map)
+        
+        temp_plot <- Add_timestamp_vline(temp_plot)
+        
+        ggsave(
+          filename = glue(
+            "{country}_{state_ac}_SEIRD_variables_without_S_and_R.png"
+          ),
+          plot = temp_plot,
+          path = plots_by_state_path
+        )
+      }
+
+    }
+    
+  }
+
 
 }
 ### the code below is for debug
