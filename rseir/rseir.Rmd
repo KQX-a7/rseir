@@ -799,15 +799,18 @@ parse_observed_data_for_score_calculation <- function(state_ac)
     }
     
     ## save the datasets, for plots of cumulative
-    selected_target_timeseries_list <- list()
-    selected_target_timeseries_list$case <-
-      target_timeseries_list[[case_datasource]]
-    selected_target_timeseries_list$hosp <-
-      target_timeseries_list[[hosp_datasource]]
-    selected_target_timeseries_list$death <-
-      target_timeseries_list[[death_datasource]]
-    saveRDS(selected_target_timeseries_list,
-            file = target_data_rds_path)
+    {
+      selected_target_timeseries_list <- list()
+      selected_target_timeseries_list$case <-
+        target_timeseries_list[[case_datasource]]
+      selected_target_timeseries_list$hosp <-
+        target_timeseries_list[[hosp_datasource]]
+      selected_target_timeseries_list$death <-
+        target_timeseries_list[[death_datasource]]
+      saveRDS(selected_target_timeseries_list,
+              file = target_data_rds_path)
+    }
+
   }
   
   ## extract each variables
@@ -1195,17 +1198,31 @@ build_beta1t <- function(supt_para, delta)
     phase2_duration <- supt_para[4]
     eps3 <- supt_para[5]
     
+    # beta1t <-
+    #   approx(
+    #     x = c(
+    #       1,
+    #       phase1_duration,
+    #       phase1_duration + days_between_phases,
+    #       phase1_duration + days_between_phases + phase2_duration,
+    #       phase1_duration + days_between_phases + phase2_duration + days_between_phases
+    #     ),
+    #     y = R0 * delta * c(1, 1, eps2, eps2, eps3),
+    #     xout = 1:(total_days + 1),
+    #     yleft = R0 * delta * 1,
+    #     yright = R0 * delta * eps3
+    #   )
     beta1t <-
       approx(
         x = c(
           1,
           phase1_duration,
           phase1_duration + days_between_phases,
-          phase1_duration + days_between_phases + phase2_duration,
-          phase1_duration + days_between_phases + phase2_duration + days_between_phases
+          phase1_duration + phase2_duration,
+          phase1_duration + phase2_duration + days_between_phases
         ),
         y = R0 * delta * c(1, 1, eps2, eps2, eps3),
-        xout = 1:(total_days+1),
+        xout = 1:(total_days + 1),
         yleft = R0 * delta * 1,
         yright = R0 * delta * eps3
       )
@@ -1221,16 +1238,32 @@ build_beta1t <- function(supt_para, delta)
     phase3_duration <- supt_para[6]
     eps4 <- supt_para[7]
     
+    # beta1t <-
+    #   approx(
+    #     x = c(
+    #       1,
+    #       phase1_duration,
+    #       phase1_duration + days_between_phases,
+    #       phase1_duration + days_between_phases + phase2_duration,
+    #       phase1_duration + days_between_phases + phase2_duration + days_between_phases,
+    #       phase1_duration + days_between_phases + phase2_duration + days_between_phases + phase3_duration,
+    #       phase1_duration + days_between_phases + phase2_duration + days_between_phases + phase3_duration + days_between_phases
+    #     ),
+    #     y = R0 * delta * c(1, 1, eps2, eps2, eps3, eps3, eps4),
+    #     xout = 1:(total_days+1),
+    #     yleft = R0 * delta * 1,
+    #     yright = R0 * delta * eps4
+    #   )
     beta1t <-
       approx(
         x = c(
           1,
           phase1_duration,
           phase1_duration + days_between_phases,
-          phase1_duration + days_between_phases + phase2_duration,
-          phase1_duration + days_between_phases + phase2_duration + days_between_phases,
-          phase1_duration + days_between_phases + phase2_duration + days_between_phases + phase3_duration,
-          phase1_duration + days_between_phases + phase2_duration + days_between_phases + phase3_duration + days_between_phases
+          phase1_duration + phase2_duration,
+          phase1_duration + phase2_duration + days_between_phases,
+          phase1_duration + phase2_duration + phase3_duration,
+          phase1_duration + phase2_duration + phase3_duration + days_between_phases
         ),
         y = R0 * delta * c(1, 1, eps2, eps2, eps3, eps3, eps4),
         xout = 1:(total_days+1),
@@ -1429,10 +1462,10 @@ make_plots <- function(state_ac)
   hosp_fraction <- dd_para[2]
   t0 <- dd_para[3]
   ### 20201208 mix datasource update
-  beginning_of_future <- last_date_with_available_data
-  # beginning_of_future <-
-  #   min(reference_date + max(obs_data_kit$I1_obsdays),
-  #       last_date_with_available_data)
+  # beginning_of_future <- last_date_with_available_data
+  beginning_of_future <-
+    min(reference_date + max(obs_data_kit$I1_obsdays),
+        last_date_with_available_data)
   
   ### 20201103 pin policy update
   if (overwrite_initial_dd_parameter == T)
@@ -1513,8 +1546,10 @@ make_plots <- function(state_ac)
         phase1_end <- reference_date + t0 + phase1_duration
         eps2 <- supt_para[3]
         phase2_duration <- supt_para[4]
+        # phase2_end <-
+        #   reference_date + t0 + phase1_duration + days_between_phases + phase2_duration
         phase2_end <-
-          reference_date + t0 + phase1_duration + days_between_phases + phase2_duration
+          reference_date + t0 + phase1_duration + phase2_duration
         eps3 <- supt_para[5]
         temp_plot <- temp_plot +
           geom_vline(xintercept = phase1_end, color = "black") +
@@ -1558,12 +1593,16 @@ make_plots <- function(state_ac)
         phase1_end <- reference_date + t0 + phase1_duration
         eps2 <- supt_para[3]
         phase2_duration <- supt_para[4]
+        # phase2_end <-
+        #   reference_date + t0 + phase1_duration + days_between_phases + phase2_duration
         phase2_end <-
-          reference_date + t0 + phase1_duration + days_between_phases + phase2_duration
+          reference_date + t0 + phase1_duration + phase2_duration
         eps3 <- supt_para[5]
         phase3_duration <- supt_para[6]
+        # phase3_end <-
+        #   reference_date + t0 + phase1_duration + days_between_phases + phase2_duration + days_between_phases + phase3_duration
         phase3_end <-
-          reference_date + t0 + phase1_duration + days_between_phases + phase2_duration + days_between_phases + phase3_duration
+          reference_date + t0 + phase1_duration + phase2_duration  + phase3_duration
         eps4 <- supt_para[7]
         
         
@@ -2319,7 +2358,7 @@ dd_to_supt <- function(dd_para)
 }
 
 
-beep(sound = 1, expr = NULL)
+# beep(sound = 1, expr = NULL)
 ```
 
 ## for debug: replot
@@ -2331,6 +2370,8 @@ for (state_ac in state) {
 beep()
 
 temp_pred <- readRDS(file.choose())
+
+write_csv(state_info,glue("inputs/{country}_state_info.csv"))
 ```
 
 
@@ -2351,7 +2392,7 @@ country <- "US"  # "US" or "CA"
 # c("AB","BC","CA","MB","NB","NL","NS","ON","QC","SK")
 # available state list for US:
 # c("AL","AK","AZ","AR","CA","CO","CT","DE","DC","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY")
-state <- "IL" #c("IL","NY", "FL", "CA") # c("CA")
+state <-  c("AL","AK","AZ","AR","CA","CO","CT","DE","DC","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY") # c("IL","NY", "FL", "CA") #c("IL","NY", "FL", "CA") # c("CA")
 # Please don't set "all_states" as TRUE, it will takes several hours to finish with a three-phases setup. 
 all_states <- FALSE
 
@@ -2373,14 +2414,14 @@ last_date_with_available_data <- Sys.Date()
 n_sample <- 5000
 
 ### 20201208 mix_datasource_update
-case_datasource <- "f_1m3f"    # valid options:"can_US","esri_CA","f_1m3f"
-hosp_datasource <- "can_US"  # valid options:"can_US","esri_CA"
-death_datasource <- "f_1m3f"   # valid options:"can_US","esri_CA","f_1m3f"
+case_datasource <- "f_1m3f"          # valid options:"can_US","esri_CA","f_1m3f"
+hosp_datasource <- "can_US"             # valid options:"can_US","esri_CA"
+death_datasource <- "f_1m3f"         # valid options:"can_US","esri_CA","f_1m3f"
 
 ## the observed SEIRD variables that are used in the score calculation
 use_case <- T
 use_hosp <- T 
-use_death <- T 
+use_death <- F 
 
 ## for data-driven parameter
 # use date (pin-policy update) or use duration?
@@ -2388,7 +2429,7 @@ overwrite_initial_dd_parameter <- T
 # the number of time phase. Now with pinned policy it must be 3.
 number_of_phase <- 4
 # the optimization radius of the policy date
-opt_radius_of_policydate <- 30
+opt_radius_of_policydate <- 14
 # the initial value of data-driven parameters
 ### warning: the initial value and limit of phase_begin will be overwrite as policy date state by state.
 # error is not used
@@ -2438,8 +2479,8 @@ initial_dd_parameter <- c(
   # errordef=0.5,
 )
 # upper/lower bound, needed in optimization
-dd_parameter_upper <- c(0.5,1,80,4.5,60,1.2,100,2,120,2)
-dd_parameter_lower <- c(0.02,0.25,10,2,5,0.2,14,0.1,14,0.1)
+dd_parameter_upper <- c(0.5,1,75,4.5,60,1.2,100,2,120,2)
+dd_parameter_lower <- c(0.02,0.5,10,2,5,0.2,14,0.1,14,0.1)
 
 print(system.time(rpyseir()))
 
