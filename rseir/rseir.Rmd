@@ -44,13 +44,8 @@ library(beepr)
 #### rpyseir
 rpyseir <- function()
 {
-  ## run for all state setup
-  ### PENDING: check state and all_states
-  if (all_states)
-    state <- state_info$alpha_code
   
   ### PENDING: check and report initial_dd_value
-  
   
   for (state_ac in state) 
   {
@@ -2392,9 +2387,7 @@ country <- "US"  # "US" or "CA"
 # c("AB","BC","CA","MB","NB","NL","NS","ON","QC","SK")
 # available state list for US:
 # c("AL","AK","AZ","AR","CA","CO","CT","DE","DC","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY")
-state <-  c("AL","AK","AZ","AR","CA","CO","CT","DE","DC","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY") # c("IL","NY", "FL", "CA") #c("IL","NY", "FL", "CA") # c("CA")
-# Please don't set "all_states" as TRUE, it will takes several hours to finish with a three-phases setup. 
-all_states <- FALSE
+state <- c("IL","NY", "FL", "CA") #c("IL","NY", "FL", "CA") # c("CA")
 
 ## basic setup
 # state_info <- get_state_info()
@@ -2424,8 +2417,9 @@ use_hosp <- T
 use_death <- F 
 
 ## for data-driven parameter
+use_best_result <- F
 # use date (pin-policy update) or use duration?
-overwrite_initial_dd_parameter <- T
+overwrite_initial_dd_parameter <- T  ### broken, a change in build_beta_t is leak, stay true please
 # the number of time phase. Now with pinned policy it must be 3.
 number_of_phase <- 4
 # the optimization radius of the policy date
