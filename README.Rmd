@@ -40,6 +40,9 @@ Rseir is developed by me(QingXuan Kong), as part of the Educational Research pro
 
 ## updata history
 
+### 20201208
+Mix data source update
+
 ### 20201130
 change score from sum of error to mean of error. (for balance)
 

@@ -53,48 +53,13 @@ rpyseir <- function()
     observed_data_kit <-
       parse_observed_data_for_score_calculation(state_ac)
     
+    
     ## The overwrite process
     if (overwrite_initial_dd_parameter == T) {
-      ### 20201103 pin policy update
-      # initial_dd_parameter[5] <-
-      #   as.integer(sampling_para$lockdown_date - reference_date)
-      # dd_parameter_upper[5] <-
-      #   initial_dd_parameter[5] + opt_radius_of_policydate
-      # dd_parameter_lower[5] <-
-      #   initial_dd_parameter[5] - opt_radius_of_policydate
-      # 
-      # initial_dd_parameter[7] <-
-      #   as.integer(sampling_para$reopen_date - reference_date)
-      # dd_parameter_upper[7] <-
-      #   initial_dd_parameter[7] + opt_radius_of_policydate
-      # dd_parameter_lower[7] <-
-      #   initial_dd_parameter[7] - opt_radius_of_policydate
-      ###
-      
-      ### 20201130 pin date update
-      initial_dd_parameter[5] <-
-        as.integer(sampling_para$p1_to_p2_date - reference_date)
-      dd_parameter_upper[5] <-
-        initial_dd_parameter[5] + opt_radius_of_policydate
-      dd_parameter_lower[5] <-
-        initial_dd_parameter[5] - opt_radius_of_policydate
-
-      initial_dd_parameter[7] <-
-        as.integer(sampling_para$p2_to_p3_date - reference_date)
-      dd_parameter_upper[7] <-
-        initial_dd_parameter[7] + opt_radius_of_policydate
-      dd_parameter_lower[7] <-
-        initial_dd_parameter[7] - opt_radius_of_policydate
-      
-      initial_dd_parameter[9] <-
-        as.integer(sampling_para$p3_to_p4_date - reference_date)
-      dd_parameter_upper[9] <-
-        initial_dd_parameter[9] + opt_radius_of_policydate
-      dd_parameter_lower[9] <-
-        initial_dd_parameter[9] - opt_radius_of_policydate
-      
+      initial_list<- get_initial_values(state_ac)
     }
     ## end of the overwrite process
+    
     
     ## the optimizer
     ### notice: Minimization function is different. nlm doesn't take limits, try optim?
@@ -103,62 +68,158 @@ rpyseir <- function()
     print(t_begin)
     opt_res <-
       optim(
-        par = initial_dd_parameter,
+        par = initial_list$initial_dd_parameter,
         fn = score_function,
         gr = NULL,
         s_para = sampling_para,
         obs_data_kit = observed_data_kit,
         method = "L-BFGS-B", #"L-BFGS-B" #"Nelder-Mead"
-        lower = dd_parameter_lower,
-        upper = dd_parameter_upper
+        lower = initial_list$dd_parameter_lower,
+        upper = initial_list$dd_parameter_upper
       )
     
-    ## report the optimization result
-    if (opt_res$convergence == 0)
-    {
-      print(glue("optim for {state_ac} is successful"))
-      print(glue("after {opt_res$counts[1]} calls to the score function"))
-    }
-    else if (opt_res$convergence == 1)
-    {
-      print(glue("optim for {state_ac} is stopped"))
-      print(glue("after {opt_res$counts[1]} calls to the score function"))
-      print(glue("message from optim: {opt_res$message}"))
-      print("The optim result should be reasonable. Change the initial value or increase the iteration limit might improve the optim result.")
-    }
-    else
-    {
-      print(glue("optim for {state_ac} encounter error, error code: {opt_res$convergence}"))
-      print(glue("after {opt_res$counts[1]} calls to the score function"))
-      print(glue("message from optim: {opt_res$message}"))
-    }
-    print(Sys.time()-t_begin)
+    t_end <- Sys.time()
     
-    saveRDS(opt_res, 
-            file = glue("outputs/{country}/temp_rds/{country}_{state_ac}_opt_res.rds"))
-    saveRDS(sampling_para,
-            file = glue("outputs/{country}/temp_rds/{country}_{state_ac}_sampling_para.rds"))
-    saveRDS(observed_data_kit,
-            file = glue("outputs/{country}/temp_rds/{country}_{state_ac}_observed_data_kit.rds"))
-    SEIRD_pred <-
-      final_result_generation(
-        state_ac,
-        dd_para = opt_res$par,
-        s_para = sampling_para,
-        obs_data_kit = observed_data_kit
-      )
-    write_csv(SEIRD_pred,
-              path = glue("outputs/{country}/SEIRD_data/{country}_{state_ac}_SEIRD_pred.csv"))
-    saveRDS(SEIRD_pred,
-            file = glue("outputs/{country}/temp_rds/{country}_{state_ac}_SEIRD_pred.rds"))
+    ## time and optim result prompts
+    {
+      
+      if (opt_res$convergence == 0)
+      {
+        print(glue("optim for {state_ac} is successful"))
+        print(glue("after {opt_res$counts[1]} calls to the score function"))
+      }
+      else if (opt_res$convergence == 1)
+      {
+        print(glue("optim for {state_ac} is stopped"))
+        print(glue("after {opt_res$counts[1]} calls to the score function"))
+        print(glue("message from optim: {opt_res$message}"))
+        print(
+          "The optim result should be reasonable. Change the initial value or increase the iteration limit might improve the optim result."
+        )
+      }
+      else
+      {
+        print(glue(
+          "optim for {state_ac} encounter error, error code: {opt_res$convergence}"
+        ))
+        print(glue("after {opt_res$counts[1]} calls to the score function"))
+        print(glue("message from optim: {opt_res$message}"))
+      }
+      print(t_end)
+      print(t_end - t_begin)
+    }
+
+    ## final run 
+    {
+      ## get the timeseries
+      final_list <-
+        final_result_generation(
+          state_ac,
+          dd_para = opt_res$par,
+          s_para = sampling_para,
+          obs_data_kit = observed_data_kit
+        )
+    }
     
-    ### notice: the make_plots function is "separate" from the rest of rpyseir
-    ### It use the rds file as input instead of the parameter input
-    ### so it could run individually, as long as you have run rpyseir for your chosen state for once and generate the rds files
-    ### This will come in handy if you want to change the label of my plot
-    ### In that case, you can just tweak make_plot(state_ac) and run it, without running rpyseir() again
-    make_plots(state_ac)
-    print(glue("plot create at {Sys.time()}"))
+    
+    ## saving
+    {
+      ## general saving
+      {
+        saveRDS(opt_res,
+                file = glue(
+                  "outputs/{country}/temp_rds/{country}_{state_ac}_opt_res.rds"
+                ))
+        saveRDS(
+          sampling_para,
+          file = glue(
+            "outputs/{country}/temp_rds/{country}_{state_ac}_sampling_para.rds"
+          )
+        )
+        saveRDS(
+          observed_data_kit,
+          file = glue(
+            "outputs/{country}/temp_rds/{country}_{state_ac}_observed_data_kit.rds"
+          )
+        )
+        write_csv(
+          final_list$SEIRD_pred_final,
+          path = glue(
+            "outputs/{country}/SEIRD_data/{country}_{state_ac}_SEIRD_pred.csv"
+          )
+        )
+        saveRDS(
+          final_list,
+          file = glue(
+            "outputs/{country}/temp_rds/{country}_{state_ac}_final_list.rds"
+          )
+        )
+      }
+
+      ## if better than save to best_record.csv
+      {
+        previous_best_record <-
+          read_csv(glue("inputs/{country}_best_record.csv"))
+        target_best_record <-
+          previous_best_record %>% filter(alpha_code == state_ac)
+        target_best_score <-
+          target_best_record$case_and_hosp_score
+        
+        ## score:report
+        {
+          print(
+            glue(
+              "final_score:{final_list$case_and_hosp_score}   previous_best:{target_best_score}"
+            )
+          )
+          print(
+            glue(
+              "final_D_score:{final_list$death_score}   previous_best:{target_best_record$death_score}"
+            )
+          )
+        }
+
+        
+        ## replace if better
+        {
+          if (target_best_score > final_list$case_and_hosp_score) {
+            print(glue("found a better solution. Updating best result record"))
+            
+            target_best_record$test_fraction <- opt_res$par[1]
+            target_best_record$hosp_fraction <- opt_res$par[2]
+            target_best_record$t0_date <-
+              opt_res$par[3] + reference_date
+            target_best_record$R0 <- opt_res$par[4]
+            target_best_record$p1_to_p2_date <-
+              opt_res$par[5] + reference_date
+            target_best_record$eps2 <- opt_res$par[6]
+            target_best_record$p2_to_p3_date <-
+              opt_res$par[7] + reference_date
+            target_best_record$eps3 <- opt_res$par[8]
+            target_best_record$p3_to_p4_date <-
+              opt_res$par[9] + reference_date
+            target_best_record$eps4 <- opt_res$par[10]
+            target_best_record$case_and_hosp_score <- final_list$case_and_hosp_score
+            target_best_record$death_score <- final_list$death_score
+            target_best_record$time <- t_end
+            
+            previous_best_record[previous_best_record$alpha_code == state_ac, ] <-
+              target_best_record
+            
+            write_csv(previous_best_record,
+                      glue("inputs/{country}_best_record.csv"))
+          }
+          else {
+            print("Score is not improved.")
+          }
+        }
+ 
+      }
+    }
+
+    
+    ### notice: the make_plots function is "separate" from the rest of rpyseir,since it use the rds file as input instead of the parameter input
+    make_plots(state_ac,t_end)
     print("**************")
     
   }
@@ -280,344 +341,6 @@ get_sampling_parameters <- function(state_ac, n_sample = 5000)
   return (para_list)
 }
 
-
-
-# ## load historical/observed data and extract the value needed for score calculation
-# parse_observed_data_for_score_calculation <- function(state_ac)
-# {
-#   try(if (!country %in% c("US", "CA")) {
-#     stop(glue("Program for {country} is not implemented yet."))
-#   })
-#   
-#   obs_data_kit <- list()
-#   observed_dataset_path <-
-#     glue("inputs/observed_timerseries_dataset/{data_source}_dataset/{country}_timeseries.csv")
-#   target_data_rds_path <-
-#     glue("outputs/{country}/temp_rds/{country}_{state_ac}_target_data.rds")
-#   
-#   ## smooth the observed increase/current data 2020/10/21
-#   my_smooth <- function(vec, radius) {
-#     # radius=1 is equal to a window of 3
-#     res_vec <-
-#       (lag(vec, n = radius) + vec + lead(vec, n = radius)) / 3
-#     return(res_vec)
-#   }
-#   
-#   if(data_source %in% c("can","c19ca") )
-#   {
-#     ## different observed data import process for US and CA
-#     if (data_source == "can" && country == "US")
-#     {
-#       raw_timeseries <-
-#         read_csv(observed_dataset_path, col_types = "cDcccciiiiiiiiiiiiii")
-#       target_timeseries <- raw_timeseries %>%
-#         filter(
-#           aggregate_level == "state",
-#           state == state_ac ,
-#           date < last_date_with_available_data ,
-#           date > reference_date
-#         ) %>%
-#         rename(cumulative_cases = cases, cumulative_deaths = deaths) %>%
-#         mutate(
-#           days_to_ref = as.integer(date - reference_date),
-#           cases_increase = cumulative_cases - lag(cumulative_cases, n = 1),
-#           deaths_increase = cumulative_deaths - lag(cumulative_deaths, n = 1),
-#           hospitalized_increase = cumulative_hospitalized - lag(cumulative_hospitalized, n = 1)
-#         ) %>%  
-#         select(
-#           state,
-#           date,
-#           days_to_ref,
-#           cumulative_cases,
-#           cumulative_deaths,
-#           cumulative_hospitalized,
-#           current_hospitalized,
-#           cases_increase,
-#           deaths_increase,
-#           hospitalized_increase
-#         )
-#       ## the saved target_data should have state, date, days_to_ref, cumu and increase
-#       saveRDS(target_timeseries,
-#               file = target_data_rds_path)
-# 
-#       ## subset again, only take those column used later.
-#       target_timeseries <- target_timeseries %>%
-#         select(
-#           state,
-#           days_to_ref,
-#           cases_increase,
-#           deaths_increase,
-#           hospitalized_increase,
-#           current_hospitalized
-#         )
-#       
-#     }
-#     else if (data_source == "c19ca" && country == "CA")
-#     {
-#       raw_timeseries <-
-#         read_csv(observed_dataset_path, col_types = "icciciiiiiiiiiiiii")
-#       
-#       target_timeseries <- raw_timeseries %>%
-#         mutate(date = parse_date(str_sub(SummaryDate, end = 10))) %>%
-#         rename(
-#           state = Abbreviation,
-#           cumulative_cases = TotalCases,
-#           cumulative_deaths = TotalDeaths,
-#           current_hospitalized = TotalHospitalized
-#         ) %>%
-#         filter(state == state_ac ,
-#                date < last_date_with_available_data ,
-#                date > reference_date) %>%
-#         mutate(days_to_ref = as.integer(date - reference_date)) %>%
-#         rename(cases_increase = DailyTotals, deaths_increase = DailyDeaths) %>%
-#         select(
-#           state,
-#           date,
-#           days_to_ref,
-#           cumulative_cases,
-#           cumulative_deaths,
-#           current_hospitalized,
-#           cases_increase,
-#           deaths_increase,
-#         )
-#       
-#       ## the saved target_data should have state, date, days_to_ref, cumu and increase
-#       saveRDS(target_timeseries,
-#               file = target_data_rds_path)
-# 
-#       ## subset again, only take those column used later.
-#       target_timeseries <- target_timeseries %>%
-#         select(
-#           state,
-#           days_to_ref,
-#           cases_increase,
-#           deaths_increase,
-#           current_hospitalized
-#         )
-#     }
-#     
-#     ## smooth
-#     target_timeseries <- target_timeseries %>%
-#       mutate(across(
-#         !c(state, days_to_ref),
-#         ~ my_smooth(vec = .x, radius = window_radius)
-#       ))
-#     
-#     with(target_timeseries,
-#          {
-#            ## extract non-na row
-#            I1_obsdays <- days_to_ref[!is.na(cases_increase)]
-#            I1_obs <- cases_increase[!is.na(cases_increase)]
-#            D_obsdays <- days_to_ref[!is.na(deaths_increase)]
-#            D_obs <- deaths_increase[!is.na(deaths_increase)]
-#            
-#            # hospitalization is a bit tricky
-#            # there are two column for it, "cumulative" and "current"
-#            # generally "current" seems to be in better quality, with less na
-#            # And there are some obvious mistake in "cumulative", such as decreasing, being less than current,  being negative
-#            # so "current" is preferred, unless "cumulative" has less na, always increase and stay positive.
-#            
-#            if (data_source == "can" && country == "US") {
-#              if (mean(is.na(hospitalized_increase)) < mean(is.na(current_hospitalized)) &
-#                  !any(hospitalized_increase < 0, na.rm = TRUE))
-#              {
-#                hosp_flag <- "cumulative"
-#                hosp_obsdays <-
-#                  days_to_ref[!is.na(hospitalized_increase)]
-#                hosp_obs <-
-#                  hospitalized_increase[!is.na(hospitalized_increase)]
-#              }
-#              else
-#              {
-#                hosp_flag <- "current"
-#                hosp_obsdays <-
-#                  days_to_ref[!is.na(current_hospitalized)]
-#                hosp_obs <-
-#                  current_hospitalized[!is.na(current_hospitalized)]
-#              }
-#            }
-#            else if (data_source == "c19ca" && country == "CA") {
-#              hosp_flag <- "current"
-#              hosp_obsdays <-
-#                days_to_ref[!is.na(current_hospitalized)]
-#              hosp_obs <-
-#                current_hospitalized[!is.na(current_hospitalized)]
-#            }
-#            
-#            
-#            ## check whether there are negative "increase"
-#            if (any(I1_obs < 0))
-#            {
-#              print(paste0("negative observed data: I1 of ", state_ac))
-#              print("replace the negative value with its previous value")
-#              I1_obs[which(I1_obs < 0)] <- I1_obs[which(I1_obs < 0) - 1]
-#            }
-#            if (any(D_obs < 0))
-#            {
-#              print(paste0("negative observed data: D of ", state_ac))
-#              print("replace the negative value with its previous value")
-#              D_obs[which(D_obs < 0)] <- D_obs[which(D_obs < 0) - 1]
-#            }
-#            if (any(hosp_obs < 0))
-#            {
-#              print(paste0("negative observed data: hosp ", hosp_flag, " of ", state_ac))
-#              print("replace the negative value with its previous value")
-#              hosp_obs[which(hosp_obs < 0)] <-
-#                hosp_obs[which(hosp_obs < 0) - 1]
-#            }
-#            
-#            ## calculate standard deviation
-#            # chi-square score need standard deviance for each observation
-#            # don't know why it should be calculation in this way
-#            # the I1 and hosp std is multiplied by 0.5. This is equal to multiply their chi-square score by 4. It is supposed to "control chi2 mix between hospitalization and deaths"
-#            # The following comments are the origin comments of std calcualtion from pyseir
-#            
-#            # Generate the errors on the observations.
-#            # Here we throw out a few assumptions to plant a flag...
-#            # 1. Systematic errors dominate and are likely of order 50% at least based
-#            # on 100% undercounting of deaths and hospitalizations in many places.
-#            # Though we account for static undercounting by letting case and hosp
-#            # counts float, so lets assume the error is a bit smaller for now.
-#            # 2. 100% is too small for 1 case count or mortality.. We should be much
-#            #    more confident in large numbers of observations
-#            # 3. TODO: Deal with this fact.. Actual observations are lower bounds.
-#            #          Need asymmetric errors.
-#            # As an error model, absolutes are less important to our problem compared
-#            # to getting relative error scaling reasonably done. This is not true if
-#            # drawing contours and confidence intervals which is why we choose large
-#            # conservative errors to overestimate the uncertainty.
-#            # As a relative scaling model we think about Poisson processes and scale
-#            # the errors in the following way:
-#            # 1. Set the error of the largest observation to 100% of its value.
-#            # 2. Scale all other errors based on sqrt(value) * sqrt(max_value)
-#            
-#            # ## calculate standard deviation
-#            # I1_std <- sqrt(I1_obs) * sqrt(max(I1_obs)) * 0.5
-#            # hosp_std <- sqrt(hosp_obs) * sqrt(max(hosp_obs)) * 0.5
-#            # D_std <- sqrt(D_obs) * sqrt(max(D_obs))
-#            # # if the observered value is small, increase its standard deviation to make it less influential.
-#            # I1_std <- ifelse(I1_obs < 5, 3 * I1_std, I1_std)
-#            # hosp_std <- ifelse(hosp_obs < 5, 3 * hosp_std, hosp_std)
-#            # D_std <- ifelse(D_obs < 5, 3 * D_std, D_std)
-#            # # fix 0 standard deviation
-#            # I1_std <- ifelse(I1_std == 0, 3, I1_std)
-#            # hosp_std <- ifelse(hosp_std == 0, 3, hosp_std)
-#            # D_std <- ifelse(D_std == 0, 3, D_std)
-#            
-#            ## never mind, just set them as all 1.
-#            I1_std <- rep(1, length(I1_obs))
-#            D_std <- rep(1, length(D_obs))
-#            hosp_std <- rep(1, length(hosp_obs))
-#            
-#            obs_data_kit <<- list(
-#              I1_obsdays = I1_obsdays,
-#              I1_obs = I1_obs,
-#              I1_std = I1_std,
-#              D_obsdays = D_obsdays,
-#              D_obs = D_obs,
-#              D_std = D_std,
-#              hosp_flag = hosp_flag,
-#              hosp_obsdays = hosp_obsdays,
-#              hosp_obs = hosp_obs,
-#              hosp_std = hosp_std
-#            )
-#            
-#          })
-#   }
-#   else if (data_source == "1m3f") {
-#     raw_timeseries <- read_csv(observed_dataset_path)
-#     target_timeseries <- raw_timeseries %>%
-#       filter(
-#         state_name == state_ac,
-#         confirmed_date < last_date_with_available_data,
-#         confirmed_date > reference_date
-#       ) %>%
-#       select(confirmed_date,
-#              state_name,
-#              county_name,
-#              confirmed_count,
-#              death_count) %>%
-#       group_by(confirmed_date) %>%
-#       summarise(
-#         cases_increase = sum(confirmed_count),
-#         deaths_increase = sum(death_count)
-#       ) %>%
-#       mutate(state=state_ac) %>% 
-#       rename(date = confirmed_date) %>%
-#       arrange(date) %>% 
-#       mutate(
-#         days_to_ref = as.integer(date - reference_date),
-#         cumulative_cases = cumsum(cases_increase),
-#         cumulative_deaths = cumsum(deaths_increase)
-#       ) %>%
-#       select(state,
-#              date,
-#              days_to_ref,
-#              cumulative_cases,
-#              cumulative_deaths,
-#              cases_increase,
-#              deaths_increase)
-#     
-#       ## the saved target_data should have state, date, days_to_ref, cumu and increase
-#       saveRDS(target_timeseries,
-#               file = target_data_rds_path)
-# 
-#       ## subset again, only take those column used later.
-#       target_timeseries <- target_timeseries %>%
-#         select(
-#           state,
-#           days_to_ref,
-#           cases_increase,
-#           deaths_increase,
-#         )
-#       
-#       ## smooth
-#       target_timeseries <- target_timeseries %>%
-#         mutate(across(
-#           !c(state, days_to_ref),
-#           ~ my_smooth(vec = .x, radius = window_radius)
-#         ))
-#       
-#       with(target_timeseries, {
-#         ## extract non-na row
-#         I1_obsdays <- days_to_ref[!is.na(cases_increase)]
-#         I1_obs <- cases_increase[!is.na(cases_increase)]
-#         D_obsdays <- days_to_ref[!is.na(deaths_increase)]
-#         D_obs <- deaths_increase[!is.na(deaths_increase)]
-#         
-#         ## check whether there are negative "increase"
-#         if (any(I1_obs < 0))
-#         {
-#           print(paste0("negative observed data: I1 of ", state_ac))
-#           print("replace the negative value with its previous value")
-#           I1_obs[which(I1_obs < 0)] <-
-#             I1_obs[which(I1_obs < 0) - 1]
-#         }
-#         if (any(D_obs < 0))
-#         {
-#           print(paste0("negative observed data: D of ", state_ac))
-#           print("replace the negative value with its previous value")
-#           D_obs[which(D_obs < 0)] <- D_obs[which(D_obs < 0) - 1]
-#         }
-#         
-#         ## never mind, just set them as all 1.
-#         I1_std <- rep(1, length(I1_obs))
-#         D_std <- rep(1, length(D_obs))
-#         
-#         obs_data_kit <<- list(
-#           I1_obsdays = I1_obsdays,
-#           I1_obs = I1_obs,
-#           I1_std = I1_std,
-#           D_obsdays = D_obsdays,
-#           D_obs = D_obs,
-#           D_std = D_std
-#         )
-#       })
-#     
-#   }
-#   
-#   return(obs_data_kit)
-# }
 
 ### 20201208 mix_datasource_update
 parse_observed_data_for_score_calculation <- function(state_ac)
@@ -981,175 +704,206 @@ parse_observed_data_for_score_calculation <- function(state_ac)
   }
 }
 
+### 20201212 full_initial_values_update
+get_initial_values <- function(state_ac)
+{
+  ### for reference
+  {
+  # # the initial value of data-driven parameters
+  # ### warning: the initial value and limit of phase_begin will be overwrite as policy date state by state.
+  # # error is not used
+  # initial_dd_parameter <- c(
+  #   # log10_I_initial = 1,
+  #   # limit_log10_I_initial=[0.333, 2],
+  #   # error_log10_I_initial=0.33,
+  #   test_fraction = 0.1,
+  #   # limit_test_fraction=[0.02, 1],
+  #   # error_test_fraction=0.02,
+  #   hosp_fraction = 0.7,
+  #   # limit_hosp_fraction=[0.25, 1],
+  #   # error_hosp_fraction=0.05,
+  #   
+  #   t0 = 60,
+  #   # limit_t0=[10, 80],
+  #   # error_t0=2.0,
+  #   R0 = 3.4,
+  #   # limit_R0=[2, 4.5],
+  #   # error_R0=0.05,
+  #   # eps1 = 1
+  #   
+  #   phase1_duration = 45,
+  #   #20
+  #   # limit_phase1_duration=[5, 40],
+  #   # error_phase1_duration=1,
+  #   eps2 = 0.3,
+  #   # limit_eps2=[0.20, 1.2],
+  #   # error_eps2=0.005,
+  #   
+  #   phase2_duration = 30,
+  #   #30
+  #   # supposed to be number of days between second and third ramps
+  #   # limit_phase2_duration=[14, 100],
+  #   # error_t_delta_phases=1,
+  #   eps3 = 0.3,
+  #   # limit_eps3=[0.10, 2.0],
+  #   # error_eps3=0.005,
+  #   
+  #   # the fourth phase
+  #   phase3_duration = 90,
+  #   #60
+  #   # limit_phase2_duration=[14, 100],
+  #   # error_t_delta_phases=1,
+  #   eps4 = 0.5
+  #   # limit_eps4=[0.10, 2.0],
+  #   # error_eps4=0.005,
+  #   
+  #   # What's this?
+  #   # errordef=0.5,
+  # )
+   
+  }
+  
+
+  if(use_best_result==T){
+    path <- glue("inputs/{country}_best_record.csv")
+  }else if (use_best_result==F) {
+    path <- glue("inputs/{country}_initial_values.csv")
+  }
+  
+  ## import
+  initial_dd_parameter <-
+    read_csv(path) %>%
+    filter(alpha_code == state_ac) %>%
+    select(test_fraction:eps4) %>%
+    mutate(across(contains("date"),  ~ as.integer(.x - reference_date))) %>% 
+    as.numeric()
+  
+  ## prepare boundary
+  dd_parameter_upper <- c(0.5, 1, 75, 4.5, 60, 1.2, 100, 2, 120, 2)
+  dd_parameter_lower <- c(0.02, 0.5, 10, 2, 5, 0.2, 14, 0.1, 14, 0.1)
+  
+  dd_parameter_upper[c(3, 5, 7, 9)] <-
+    initial_dd_parameter[c(3, 5, 7, 9)] + opt_radius_of_policydate
+  dd_parameter_lower[c(3, 5, 7, 9)] <-
+    initial_dd_parameter[c(3, 5, 7, 9)] - opt_radius_of_policydate
+  
+  return(
+    list(
+      initial_dd_parameter = initial_dd_parameter,
+      dd_parameter_upper = dd_parameter_upper,
+      dd_parameter_lower = dd_parameter_lower
+    )
+  )  
+}
 
 ## The score function
 score_function <- function(dd_para, s_para, obs_data_kit)
 {
-  
-  param_set <- s_para
-  ## parse the input parameter
-  param_set$log10_I_initial <- 1
-  test_fraction <- dd_para[1]
-  hosp_fraction <- dd_para[2]
-  t0 <- dd_para[3]
-  
-  ### 20201103 pin policy update
-  if (overwrite_initial_dd_parameter == T)
+  ## the before_and_get_pred_part
   {
-    supt_para <- dd_to_supt(dd_para)
-  }
-  else
-  {
-    supt_para <- dd_para[-(1:3)]
-  }
-
-
-  ###
-  
-  # this beta1t is a vector storing the beta1 value on day 1:total_days
-  # it represent/determined the number of phases
-  param_set$beta1t <- build_beta1t(supt_para, s_para$delta)
-  
-  SEIRD_pred <- get_SEIRD_timeseries(param_set)
-  
-  # calculate the chi-square score
-  score <- 0
-
-  with(obs_data_kit, {
-    # same procedure for each variable used in score calculation
-    if (use_case == T) {
-      # calculate increase from cumulative value
-      I1_increase <-
-        SEIRD_pred$cumulative_I1[-1] - lag(SEIRD_pred$cumulative_I1, n = 1)[-1]
-      # get the prediction value where there are observed data available.
-      I1_pred <-
-        approx(
-          x = (1:total_days) + t0,
-          y = I1_increase,
-          xout = I1_obsdays,
-          yleft = 0,
-          yright = 0
-        )$y * test_fraction
-      # calculation the chi-square score
-      chi2_I1 <- mean((I1_pred - I1_obs) ^ 2 / I1_std ^ 2)
-      score <- score + chi2_I1
+    param_set <- s_para
+    ## parse the input parameter
+    param_set$log10_I_initial <- 1
+    test_fraction <- dd_para[1]
+    hosp_fraction <- dd_para[2]
+    t0 <- dd_para[3]
+    
+    ### 20201103 pin policy update
+    if (overwrite_initial_dd_parameter == T)
+    {
+      supt_para <- dd_to_supt(dd_para)
     }
-
-    if (use_hosp == T) {
-      hosp_increase <-
-        SEIRD_pred$cumulative_I2_I3[-1] - lag(SEIRD_pred$cumulative_I2_I3, n = 1)[-1]
-
-      if (hosp_flag == "cumulative")
-      {
-        hosp_pred <-
-          approx(
-            x = (1:total_days) + t0,
-            y = hosp_increase,
-            xout =  hosp_obsdays,
-            yleft = 0,
-            yright = 0
-          )$y * hosp_fraction
-      }
-      else if (hosp_flag == "current")
-      {
-        hosp_pred <-
-          approx(
-            x = (0:total_days) + t0,
-            y = (SEIRD_pred$I2 + SEIRD_pred$I3),
-            xout = hosp_obsdays,
-            yleft = 0,
-            yright = 0
-          )$y * hosp_fraction
-      }
-      chi2_hosp <-
-        mean((hosp_pred - hosp_obs) ^ 2 / hosp_std ^ 2)
-      score <- score + chi2_hosp
-    }
-
-    if (use_death == T) {
-      D_increase <-
-        SEIRD_pred$D[-1] - lag(SEIRD_pred$D, n = 1)[-1]
-
-      D_pred <-
-        approx(
-          x = (1:total_days) + t0,
-          y = D_increase,
-          xout =  D_obsdays,
-          yleft = 0,
-          yright = 0
-        )$y
-
-      chi2_D <- mean((D_pred - D_obs) ^ 2 / D_std ^ 2)
-      score <- score + chi2_D
+    else
+    {
+      supt_para <- dd_para[-(1:3)]
     }
     
+    
+    ###
+    
+    # this beta1t is a vector storing the beta1 value on day 1:total_days
+    # it represent/determined the number of phases
+    param_set$beta1t <- build_beta1t(supt_para, s_para$delta)
+    
+    SEIRD_pred <- get_SEIRD_timeseries(param_set)
+  }
+
+  
+  ## calculate the chi-square score
+  {
+    score <- 0
+    
+    with(obs_data_kit, {
+      # same procedure for each variable used in score calculation
+      if (use_case == T) {
+        # calculate increase from cumulative value
+        I1_increase <-
+          SEIRD_pred$cumulative_I1[-1] - lag(SEIRD_pred$cumulative_I1, n = 1)[-1]
+        # get the prediction value where there are observed data available.
+        I1_pred <-
+          approx(
+            x = (1:total_days) + t0,
+            y = I1_increase,
+            xout = I1_obsdays,
+            yleft = 0,
+            yright = 0
+          )$y * test_fraction
+        # calculation the chi-square score
+        chi2_I1 <- mean((I1_pred - I1_obs) ^ 2 / I1_std ^ 2)
+        score <- score + chi2_I1
+      }
+      
+      if (use_hosp == T) {
+        hosp_increase <-
+          SEIRD_pred$cumulative_I2_I3[-1] - lag(SEIRD_pred$cumulative_I2_I3, n = 1)[-1]
+        
+        if (hosp_flag == "cumulative")
+        {
+          hosp_pred <-
+            approx(
+              x = (1:total_days) + t0,
+              y = hosp_increase,
+              xout =  hosp_obsdays,
+              yleft = 0,
+              yright = 0
+            )$y * hosp_fraction
+        }
+        else if (hosp_flag == "current")
+        {
+          hosp_pred <-
+            approx(
+              x = (0:total_days) + t0,
+              y = (SEIRD_pred$I2 + SEIRD_pred$I3),
+              xout = hosp_obsdays,
+              yleft = 0,
+              yright = 0
+            )$y * hosp_fraction
+        }
+        chi2_hosp <-
+          mean((hosp_pred - hosp_obs) ^ 2 / hosp_std ^ 2)
+        score <- score + chi2_hosp
+      }
+      
+      if (use_death == T) {
+        D_increase <-
+          SEIRD_pred$D[-1] - lag(SEIRD_pred$D, n = 1)[-1]
+        
+        D_pred <-
+          approx(
+            x = (1:total_days) + t0,
+            y = D_increase,
+            xout =  D_obsdays,
+            yleft = 0,
+            yright = 0
+          )$y
+        
+        chi2_D <- mean((D_pred - D_obs) ^ 2 / D_std ^ 2)
+        score <- score + chi2_D
+      }
+      
       return(score)
-  })
-
-
-  
-  
-  #   with(obs_data_kit, {
-  #   # calculate increase from cumulative value
-  #   I1_increase <-
-  #     SEIRD_pred$cumulative_I1[-1] - lag(SEIRD_pred$cumulative_I1, n = 1)[-1]
-  #   hosp_increase <-
-  #     SEIRD_pred$cumulative_I2_I3[-1] - lag(SEIRD_pred$cumulative_I2_I3, n = 1)[-1]
-  #   D_increase <-
-  #     SEIRD_pred$D[-1] - lag(SEIRD_pred$D, n = 1)[-1]
-  #   # get the prediction value where there are observed data.
-  # 
-  #   I1_pred <-
-  #     approx(
-  #       x = (1:total_days) + t0,
-  #       y = I1_increase,
-  #       xout = I1_obsdays,
-  #       yleft = 0,
-  #       yright = 0
-  #     )$y*test_fraction
-  # 
-  #   D_pred <-
-  #     approx(
-  #       x = (1:total_days) + t0,
-  #       y = D_increase,
-  #       xout =  D_obsdays,
-  #       yleft = 0,
-  #       yright = 0
-  #     )$y
-  # 
-  #   if (hosp_flag == "cumulative")
-  #   {
-  #     hosp_pred <-
-  #       approx(
-  #         x = (1:total_days) + t0,
-  #         y = hosp_increase,
-  #         xout =  hosp_obsdays,
-  #         yleft = 0,
-  #         yright = 0
-  #       )$y*hosp_fraction
-  #   }
-  #   else if (hosp_flag == "current")
-  #   {
-  #     hosp_pred <-
-  #       approx(
-  #         x = (0:total_days) + t0,
-  #         y = (SEIRD_pred$I2 + SEIRD_pred$I3),
-  #         xout = hosp_obsdays,
-  #         yleft = 0,
-  #         yright = 0
-  #       )$y*hosp_fraction
-  #   }
-  # 
-  #   # calculation the chi-square score
-  #   chi2_I1 <- sum((I1_pred - I1_obs) ^ 2 / I1_std ^ 2)
-  #   chi2_D <- sum((D_pred - D_obs) ^ 2 / D_std ^ 2)
-  #   chi2_hosp <- sum((hosp_pred - hosp_obs) ^ 2 / hosp_std ^ 2)
-  # 
-  # 
-  #   ### notice: no_data_penalty is not implemented
-  #   # return(chi2_I1 + chi2_D + chi2_hosp)
-  #   return(chi2_I1+ chi2_hosp)
-  # })
+    })
+  }
 }
 
 
@@ -1378,59 +1132,152 @@ SEIRD_timestep <- function(t, current_vals, param_set)
 ## calculate the final sEIRD data and make the plot
 final_result_generation <- function(state_ac,dd_para,s_para,obs_data_kit)
 {
-  param_set <- s_para
-  ## parse the input parameter
-  param_set$log10_I_initial <- 1
-  test_fraction <- dd_para[1]
-  hosp_fraction <- dd_para[2]
-  t0 <- dd_para[3]
-  
-  # this beta1t is a vector storing the beta1 value on day 1:total_days
-  # it represent/determined the number of phases
-  
-  ### 20201103 pin policy update
-  if (overwrite_initial_dd_parameter == T)
+  ## the before_and_get_pred_part
   {
-    supt_para <- dd_to_supt(dd_para)
+    param_set <- s_para
+    ## parse the input parameter
+    param_set$log10_I_initial <- 1
+    test_fraction <- dd_para[1]
+    hosp_fraction <- dd_para[2]
+    t0 <- dd_para[3]
+    
+    # this beta1t is a vector storing the beta1 value on day 1:total_days
+    # it represent/determined the number of phases
+    
+    ### 20201103 pin policy update
+    if (overwrite_initial_dd_parameter == T)
+    {
+      supt_para <- dd_to_supt(dd_para)
+    }
+    else
+    {
+      supt_para <- dd_para[-(1:3)]
+    }
+    ###
+    
+    param_set$beta1t <- build_beta1t(supt_para, s_para$delta)
+    
+    SEIRD_pred <- get_SEIRD_timeseries(param_set)
   }
-  else
+
+  
+  ## generating the final SEIRD output
   {
-    supt_para <- dd_para[-(1:3)]
+    # calculate the increase
+    I1_increase <-
+      SEIRD_pred$cumulative_I1[-1] - lag(SEIRD_pred$cumulative_I1, n = 1)[-1]
+    hosp_increase <-
+      SEIRD_pred$cumulative_I2_I3[-1] - lag(SEIRD_pred$cumulative_I2_I3, n = 1)[-1]
+    D_increase <-
+      SEIRD_pred$D[-1] - lag(SEIRD_pred$D, n = 1)[-1]
+    
+    # finialize and save the SEIRD prediction dataset
+    SEIRD_pred_final <- SEIRD_pred %>%
+      mutate(
+        date = reference_date + t0 + time,
+        I1_increase = c(0, I1_increase),
+        hosp_increase = c(0, hosp_increase),
+        D_increase = c(0, D_increase)
+      ) %>%
+      mutate(
+        I1_tested = I1 * test_fraction,
+        I1_increase_tested = I1_increase * test_fraction,
+        cumulative_I1_tested = cumulative_I1 * test_fraction
+      ) %>%
+      rename(days_to_t0 = time) %>%
+      select(date, days_to_t0, everything())
   }
-  ###
+
+  ## get the score using the same code from score function. It didn't output death_score so can't use it directly.
+  ## calculate the chi-square score
+  {
+    case_and_hosp_score <- NA
+    death_score <- NA
+    
+    with(obs_data_kit, {
+      # same procedure for each variable used in score calculation
+      if (use_case == T) {
+        # calculate increase from cumulative value
+        I1_increase <-
+          SEIRD_pred$cumulative_I1[-1] - lag(SEIRD_pred$cumulative_I1, n = 1)[-1]
+        # get the prediction value where there are observed data available.
+        I1_pred <-
+          approx(
+            x = (1:total_days) + t0,
+            y = I1_increase,
+            xout = I1_obsdays,
+            yleft = 0,
+            yright = 0
+          )$y * test_fraction
+        # calculation the chi-square score
+        chi2_I1 <- mean((I1_pred - I1_obs) ^ 2 / I1_std ^ 2)
+        score <- chi2_I1
+      }
+      
+      if (use_hosp == T) {
+        hosp_increase <-
+          SEIRD_pred$cumulative_I2_I3[-1] - lag(SEIRD_pred$cumulative_I2_I3, n = 1)[-1]
+        
+        if (hosp_flag == "cumulative")
+        {
+          hosp_pred <-
+            approx(
+              x = (1:total_days) + t0,
+              y = hosp_increase,
+              xout =  hosp_obsdays,
+              yleft = 0,
+              yright = 0
+            )$y * hosp_fraction
+        }
+        else if (hosp_flag == "current")
+        {
+          hosp_pred <-
+            approx(
+              x = (0:total_days) + t0,
+              y = (SEIRD_pred$I2 + SEIRD_pred$I3),
+              xout = hosp_obsdays,
+              yleft = 0,
+              yright = 0
+            )$y * hosp_fraction
+        }
+        chi2_hosp <-
+          mean((hosp_pred - hosp_obs) ^ 2 / hosp_std ^ 2)
+        score <- score + chi2_hosp
+      }
+      
+      
+        D_increase <-
+          SEIRD_pred$D[-1] - lag(SEIRD_pred$D, n = 1)[-1]
+        
+        D_pred <-
+          approx(
+            x = (1:total_days) + t0,
+            y = D_increase,
+            xout =  D_obsdays,
+            yleft = 0,
+            yright = 0
+          )$y
+        
+        chi2_D <- mean((D_pred - D_obs) ^ 2 / D_std ^ 2)
+      
+      
+      case_and_hosp_score <<- score
+      death_score <<- chi2_D
+    })
+    
+  }
   
-  param_set$beta1t <- build_beta1t(supt_para, s_para$delta)
   
-  SEIRD_pred <- get_SEIRD_timeseries(param_set)
-  
-  # calculate the increase
-  I1_increase <-
-    SEIRD_pred$cumulative_I1[-1] - lag(SEIRD_pred$cumulative_I1, n = 1)[-1]
-  hosp_increase <-
-    SEIRD_pred$cumulative_I2_I3[-1] - lag(SEIRD_pred$cumulative_I2_I3, n = 1)[-1]
-  D_increase <-
-    SEIRD_pred$D[-1] - lag(SEIRD_pred$D, n = 1)[-1]
-  
-  # finialize and save the SEIRD prediction dataset
-  SEIRD_pred <- SEIRD_pred %>%
-    mutate(
-      date = reference_date + t0 + time,
-      I1_increase = c(0, I1_increase),
-      hosp_increase = c(0, hosp_increase),
-      D_increase = c(0, D_increase)
-    ) %>% 
-    mutate(
-      I1_tested = I1 * test_fraction,
-      I1_increase_tested = I1_increase * test_fraction,
-      cumulative_I1_tested = cumulative_I1 * test_fraction
-    ) %>% 
-    rename(days_to_t0=time) %>% 
-    select(date,days_to_t0,everything())
-  
-  return(SEIRD_pred)
+  return(
+    list(
+      SEIRD_pred_final = SEIRD_pred_final,
+      case_and_hosp_score = case_and_hosp_score,
+      death_score = death_score
+    )
+  )
 }
 
-make_plots <- function(state_ac)
+make_plots <- function(state_ac,t_end=Sys.time())
 {
   ### notice: the make_plots function is "separate" from the rest of rpyseir
   ### It use the rds file as input instead of the parameter input
@@ -1448,7 +1295,7 @@ make_plots <- function(state_ac)
   obs_data_kit <-
     readRDS(file = glue("outputs/{country}/temp_rds/{country}_{state_ac}_observed_data_kit.rds"))
   SEIRD_pred <-
-    readRDS(file = glue("outputs/{country}/temp_rds/{country}_{state_ac}_SEIRD_pred.rds"))
+    read_csv(file = glue("outputs/{country}/SEIRD_data/{country}_{state_ac}_SEIRD_pred.csv"))
   target_data <- 
     readRDS(file = glue("outputs/{country}/temp_rds/{country}_{state_ac}_target_data.rds"))
   
@@ -1496,7 +1343,7 @@ make_plots <- function(state_ac)
           label = "pred_begin",
           size = 3
         ) +
-        labs(caption = Sys.time())
+        labs(caption = t_end)
       
       ## some plots don't need to add the phase stuff, so here is a way to skip them
       if (skip == TRUE)
@@ -2057,7 +1904,7 @@ make_plots <- function(state_ac)
                         s_para$delta,
                         "   optim_code=",
                         opt_res$convergence),
-      caption = paste0(Sys.time(),
+      caption = paste0(t_end,
         "test_fraction=",
         test_fraction,
         "   hosp_fraction=",
@@ -2213,7 +2060,7 @@ make_plots <- function(state_ac)
             y = "Number of people",
             title = glue("SEIRD of {state_ac}"),
             color = "Legend",
-            caption = glue("created at {Sys.time()}")
+            caption = glue("created at {t_end}")
           ) +
           scale_color_manual(values = color_map)
         
@@ -2240,7 +2087,7 @@ make_plots <- function(state_ac)
             y = "Number of people",
             title = glue("SEIRD of {state_ac} withour S"),
             color = "Legend",
-            caption = glue("created at {Sys.time()}")
+            caption = glue("created at {t_end}")
           ) +
           scale_color_manual(values = color_map)
         
@@ -2267,7 +2114,7 @@ make_plots <- function(state_ac)
             y = "Number of people",
             title = glue("SEIRD of {state_ac} without S and R"),
             color = "Legend",
-            caption = glue("created at {Sys.time()}")
+            caption = glue("created at {t_end}")
           ) +
           scale_color_manual(values = color_map)
         
@@ -2330,12 +2177,16 @@ dd_to_supt <- function(dd_para)
   
   if (number_of_phase >= 2) {
     supt_para[2] <- dd_para[5] - dd_para[3]
+    if (supt_para[2] < 0)
+    {
+      print("warning: negaitive duration")
+    }
   }
   
   if (number_of_phase >= 3)
   {
     supt_para[4] <- dd_para[7] - dd_para[5]
-    if (supt_para[2] < 0 || supt_para[4] < 0)
+    if ( supt_para[4] < 0)
     {
       print("warning: negaitive duration")
     }
@@ -2344,7 +2195,7 @@ dd_to_supt <- function(dd_para)
   if (number_of_phase >= 4)
   {
     supt_para[6] <- dd_para[9] - dd_para[7]
-    if (supt_para[4] < 0 || supt_para[6] < 0)
+    if ( supt_para[6] < 0)
     {
       print("warning: negaitive duration")
     }
@@ -2387,7 +2238,7 @@ country <- "US"  # "US" or "CA"
 # c("AB","BC","CA","MB","NB","NL","NS","ON","QC","SK")
 # available state list for US:
 # c("AL","AK","AZ","AR","CA","CO","CT","DE","DC","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY")
-state <- c("IL","NY", "FL", "CA") #c("IL","NY", "FL", "CA") # c("CA")
+state <-  c("IL","NY", "FL", "CA") # c("CA")
 
 ## basic setup
 # state_info <- get_state_info()
@@ -2417,64 +2268,13 @@ use_hosp <- T
 use_death <- F 
 
 ## for data-driven parameter
-use_best_result <- F
+use_best_result <- T
 # use date (pin-policy update) or use duration?
 overwrite_initial_dd_parameter <- T  ### broken, a change in build_beta_t is leak, stay true please
 # the number of time phase. Now with pinned policy it must be 3.
 number_of_phase <- 4
 # the optimization radius of the policy date
 opt_radius_of_policydate <- 14
-# the initial value of data-driven parameters
-### warning: the initial value and limit of phase_begin will be overwrite as policy date state by state.
-# error is not used
-initial_dd_parameter <- c(
-  # log10_I_initial = 1,
-  # limit_log10_I_initial=[0.333, 2],
-  # error_log10_I_initial=0.33,
-  test_fraction = 0.1,
-  # limit_test_fraction=[0.02, 1],
-  # error_test_fraction=0.02,
-  hosp_fraction = 0.7,
-  # limit_hosp_fraction=[0.25, 1],
-  # error_hosp_fraction=0.05,
-  
-  t0 = 60,
-  # limit_t0=[10, 80],
-  # error_t0=2.0,
-  R0 = 3.4,
-  # limit_R0=[2, 4.5],
-  # error_R0=0.05,
-  # eps1 = 1
-  
-  phase1_duration = 45, #20
-  # limit_phase1_duration=[5, 40],
-  # error_phase1_duration=1,
-  eps2 = 0.3,
-  # limit_eps2=[0.20, 1.2],
-  # error_eps2=0.005,
-  
-  phase2_duration = 30, #30
-  # supposed to be number of days between second and third ramps
-  # limit_phase2_duration=[14, 100],
-  # error_t_delta_phases=1,
-  eps3 = 0.3,
-  # limit_eps3=[0.10, 2.0],
-  # error_eps3=0.005,
-  
-  # the fourth phase
-  phase3_duration = 90, #60
-  # limit_phase2_duration=[14, 100],
-  # error_t_delta_phases=1,
-  eps4 = 0.5
-  # limit_eps4=[0.10, 2.0],
-  # error_eps4=0.005,
-  
-  # What's this?
-  # errordef=0.5,
-)
-# upper/lower bound, needed in optimization
-dd_parameter_upper <- c(0.5,1,75,4.5,60,1.2,100,2,120,2)
-dd_parameter_lower <- c(0.02,0.5,10,2,5,0.2,14,0.1,14,0.1)
 
 print(system.time(rpyseir()))
 
