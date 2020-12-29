@@ -49,9 +49,16 @@ rpyseir <- function()
   
   for (state_ac in state) 
   {
+    
+    # create dir for rds files
+    rds_folder <- glue("outputs/{country}/temp_rds/{state_ac}")
+    if (!dir.exists(rds_folder)) {
+      dir.create(rds_folder)
+    }
+    
     sampling_para <- get_sampling_parameters(state_ac, n_sample)
     observed_data_kit <-
-      parse_observed_data_for_score_calculation(state_ac)
+      parse_observed_data_for_score_calculation(state_ac,rds_folder)
     
     
     ## The overwrite process
@@ -128,18 +135,18 @@ rpyseir <- function()
       {
         saveRDS(opt_res,
                 file = glue(
-                  "outputs/{country}/temp_rds/{country}_{state_ac}_opt_res.rds"
+                  "{rds_folder}/{country}_{state_ac}_opt_res.rds"
                 ))
         saveRDS(
           sampling_para,
           file = glue(
-            "outputs/{country}/temp_rds/{country}_{state_ac}_sampling_para.rds"
+            "{rds_folder}/{country}_{state_ac}_sampling_para.rds"
           )
         )
         saveRDS(
           observed_data_kit,
           file = glue(
-            "outputs/{country}/temp_rds/{country}_{state_ac}_observed_data_kit.rds"
+            "{rds_folder}/{country}_{state_ac}_observed_data_kit.rds"
           )
         )
         write_csv(
@@ -151,7 +158,7 @@ rpyseir <- function()
         saveRDS(
           final_list,
           file = glue(
-            "outputs/{country}/temp_rds/{country}_{state_ac}_final_list.rds"
+            "{rds_folder}/{country}_{state_ac}_final_list.rds"
           )
         )
       }
@@ -182,8 +189,10 @@ rpyseir <- function()
         
         ## replace if better
         {
+          need_replace <- F
           if (target_best_score > final_list$case_and_hosp_score) {
             print(glue("found a better solution. Updating best result record"))
+            need_replace <- T
             
             target_best_record$test_fraction <- opt_res$par[1]
             target_best_record$hosp_fraction <- opt_res$par[2]
@@ -219,7 +228,46 @@ rpyseir <- function()
 
     
     ### notice: the make_plots function is "separate" from the rest of rpyseir,since it use the rds file as input instead of the parameter input
-    make_plots(state_ac,t_end)
+    make_plots(state_ac,t_end,rds_folder)
+    
+    ### copy all the result to the cache folder if it is better
+    if(need_replace==T){
+      ## plots
+      sftb_plot_folder <- glue("so_far_the_best/{country}/plots_by_state/{state_ac}")
+      if(!dir.exists(sftb_plot_folder)){
+        dir.create(sftb_plot_folder)
+      }
+      plot_file_list <- list.files(glue("outputs/{country}/plots_by_state/{state_ac}/"),full.names = T)
+      for (plot_file in plot_file_list) {
+        file.copy(
+          from = plot_file,
+          to = sftb_plot_folder,
+          overwrite = T
+        )
+      }
+      
+      ## SEIRD_pred
+      file.copy(
+        from = glue("outputs/{country}/SEIRD_data/{country}_{state_ac}_SEIRD_pred.csv"),
+        to = glue("so_far_the_best/{country}/SEIRD_data/"),
+        overwrite = T
+      )
+      
+      ## rds
+      sftb_rds_folder <-
+        glue("so_far_the_best/{country}/temp_rds/{state_ac}")
+      if (!dir.exists(sftb_rds_folder)) {
+        dir.create(sftb_rds_folder)
+      }
+      rds_file_list <-
+        list.files(glue("outputs/{country}/temp_rds/{state_ac}/"),full.names = T)
+      for (rds_file in rds_file_list) {
+        file.copy(from = rds_file,
+                  to = sftb_rds_folder,
+                  overwrite = T)
+      }
+    }
+    
     print("**************")
     
   }
@@ -343,7 +391,7 @@ get_sampling_parameters <- function(state_ac, n_sample = 5000)
 
 
 ### 20201208 mix_datasource_update
-parse_observed_data_for_score_calculation <- function(state_ac)
+parse_observed_data_for_score_calculation <- function(state_ac,rds_folder)
 {
   try(if (!country %in% c("US", "CA")) {
     stop(glue("Program for {country} is not implemented yet."))
@@ -353,7 +401,7 @@ parse_observed_data_for_score_calculation <- function(state_ac)
   observed_dataset_folder <-
     glue("inputs/observed_timerseries_dataset")
   target_data_rds_path <-
-    glue("outputs/{country}/temp_rds/{country}_{state_ac}_target_data.rds")
+    glue("{rds_folder}/{country}_{state_ac}_target_data.rds")
   
   my_smooth <- function(vec, radius) {
     # radius=1 is equal to a window of 3
@@ -1277,7 +1325,7 @@ final_result_generation <- function(state_ac,dd_para,s_para,obs_data_kit)
   )
 }
 
-make_plots <- function(state_ac,t_end=Sys.time())
+make_plots <- function(state_ac,t_end=Sys.time(),rds_folder)
 {
   ### notice: the make_plots function is "separate" from the rest of rpyseir
   ### It use the rds file as input instead of the parameter input
@@ -1287,17 +1335,17 @@ make_plots <- function(state_ac,t_end=Sys.time())
   
   ## reload the rds files
   dd_para <-
-    readRDS(file = glue("outputs/{country}/temp_rds/{country}_{state_ac}_opt_res.rds"))$par
+    readRDS(file = glue("{rds_folder}/{country}_{state_ac}_opt_res.rds"))$par
   opt_res <-
-    readRDS(file = glue("outputs/{country}/temp_rds/{country}_{state_ac}_opt_res.rds"))
+    readRDS(file = glue("{rds_folder}/{country}_{state_ac}_opt_res.rds"))
   s_para <-
-    readRDS(file = glue("outputs/{country}/temp_rds/{country}_{state_ac}_sampling_para.rds"))
+    readRDS(file = glue("{rds_folder}/{country}_{state_ac}_sampling_para.rds"))
   obs_data_kit <-
-    readRDS(file = glue("outputs/{country}/temp_rds/{country}_{state_ac}_observed_data_kit.rds"))
+    readRDS(file = glue("{rds_folder}/{country}_{state_ac}_observed_data_kit.rds"))
   SEIRD_pred <-
     read_csv(file = glue("outputs/{country}/SEIRD_data/{country}_{state_ac}_SEIRD_pred.csv"))
   target_data <- 
-    readRDS(file = glue("outputs/{country}/temp_rds/{country}_{state_ac}_target_data.rds"))
+    readRDS(file = glue("{rds_folder}/{country}_{state_ac}_target_data.rds"))
   
   
   test_fraction <- dd_para[1]
@@ -1504,7 +1552,7 @@ make_plots <- function(state_ac,t_end=Sys.time())
     }
   plots_by_state_path <-
     glue("outputs/{country}/plots_by_state/{state_ac}")
-  if (!file.exists(plots_by_state_path))
+  if (!dir.exists(plots_by_state_path))
     dir.create(plots_by_state_path)
   
   ### ploting begin
@@ -2148,7 +2196,13 @@ make_plots <- function(state_ac,t_end=Sys.time())
       "outputs/CA/temp_rds",
       "outputs/US/SEIRD_data",
       "outputs/US/plots_by_state",
-      "outputs/US/temp_rds"
+      "outputs/US/temp_rds",
+      "so_far_the_best/CA/SEIRD_data",
+      "so_far_the_best/CA/plots_by_state",
+      "so_far_the_best/CA/temp_rds",
+      "so_far_the_best/US/SEIRD_data",
+      "so_far_the_best/US/plots_by_state",
+      "so_far_the_best/US/temp_rds"
     )
   for (folder in folder_list) {
     if (!file.exists(folder))
@@ -2238,7 +2292,7 @@ country <- "US"  # "US" or "CA"
 # c("AB","BC","CA","MB","NB","NL","NS","ON","QC","SK")
 # available state list for US:
 # c("AL","AK","AZ","AR","CA","CO","CT","DE","DC","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY")
-state <-  c("IL","NY", "FL", "CA") # c("CA")
+state <-  c("AL","AK","AZ","AR","CA","CO","CT","DE","DC","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY") #c("IL","NY", "FL", "CA") # c("CA")
 
 ## basic setup
 # state_info <- get_state_info()
