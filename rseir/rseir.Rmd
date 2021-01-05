@@ -163,10 +163,10 @@ rpyseir <- function()
         )
       }
 
-      ## if better than save to best_record.csv
+      ## if better then save to best_record.csv
       {
         previous_best_record <-
-          read_csv(glue("inputs/{country}_best_record.csv"))
+          read_csv(glue("inputs/initial_value_and_best_record/{country}_best_record.csv"))
         target_best_record <-
           previous_best_record %>% filter(alpha_code == state_ac)
         target_best_score <-
@@ -194,29 +194,59 @@ rpyseir <- function()
             print(glue("found a better solution. Updating best result record"))
             need_replace <- T
             
-            target_best_record$test_fraction <- opt_res$par[1]
-            target_best_record$hosp_fraction <- opt_res$par[2]
-            target_best_record$t0_date <-
-              opt_res$par[3] + reference_date
-            target_best_record$R0 <- opt_res$par[4]
-            target_best_record$p1_to_p2_date <-
-              opt_res$par[5] + reference_date
-            target_best_record$eps2 <- opt_res$par[6]
-            target_best_record$p2_to_p3_date <-
-              opt_res$par[7] + reference_date
-            target_best_record$eps3 <- opt_res$par[8]
-            target_best_record$p3_to_p4_date <-
-              opt_res$par[9] + reference_date
-            target_best_record$eps4 <- opt_res$par[10]
-            target_best_record$case_and_hosp_score <- final_list$case_and_hosp_score
-            target_best_record$death_score <- final_list$death_score
-            target_best_record$time <- t_end
+            target_best_record <- within(target_best_record, {
+              test_fraction <- opt_res$par[1]
+              hosp_fraction <- opt_res$par[2]
+              t0_date <- opt_res$par[3] + reference_date
+              R0 <- opt_res$par[4]
+              p1_to_p2_date <- opt_res$par[5] + reference_date
+              eps2 <- opt_res$par[6]
+              p2_to_p3_date <- opt_res$par[7] + reference_date
+              eps3 <- opt_res$par[8]
+              p3_to_p4_date <- opt_res$par[9] + reference_date
+              eps4 <- opt_res$par[10]
+              beta_1 <- R0 * sampling_para$delta * 1
+              beta_2 <- R0 * sampling_para$delta * eps2
+              beta_3 <- R0 * sampling_para$delta * eps3
+              beta_4 <- R0 * sampling_para$delta * eps4
+              case_and_hosp_score <- final_list$case_and_hosp_score
+              death_score <- final_list$death_score
+              time <- t_end
+            })
             
-            previous_best_record[previous_best_record$alpha_code == state_ac, ] <-
+            previous_best_record[previous_best_record$alpha_code == state_ac,] <-
               target_best_record
             
-            write_csv(previous_best_record,
-                      glue("inputs/{country}_best_record.csv"))
+            write_csv(
+              previous_best_record,
+              glue(
+                "inputs/initial_value_and_best_record/{country}_best_record.csv"
+              )
+            )
+            # target_best_record$test_fraction <- opt_res$par[1]
+            # target_best_record$hosp_fraction <- opt_res$par[2]
+            # target_best_record$t0_date <-
+            #   opt_res$par[3] + reference_date
+            # target_best_record$R0 <- opt_res$par[4]
+            # target_best_record$p1_to_p2_date <-
+            #   opt_res$par[5] + reference_date
+            # target_best_record$eps2 <- opt_res$par[6]
+            # target_best_record$p2_to_p3_date <-
+            #   opt_res$par[7] + reference_date
+            # target_best_record$eps3 <- opt_res$par[8]
+            # target_best_record$p3_to_p4_date <-
+            #   opt_res$par[9] + reference_date
+            # target_best_record$eps4 <- opt_res$par[10]
+            # taeget_best_record$beta_1 <- 
+            # target_best_record$case_and_hosp_score <- final_list$case_and_hosp_score
+            # target_best_record$death_score <- final_list$death_score
+            # target_best_record$time <- t_end
+            # 
+            # previous_best_record[previous_best_record$alpha_code == state_ac, ] <-
+            #   target_best_record
+            # 
+            # write_csv(previous_best_record,
+            #           glue("inputs/initial_value_and_best_record/{country}_best_record.csv"))
           }
           else {
             print("Score is not improved.")
@@ -297,9 +327,10 @@ get_sampling_parameters <- function(state_ac, n_sample = 5000)
     # basis information
     population = target_info$population,
     state_name = target_info$Name, 
-    p1_to_p2_date = target_info$p1_to_p2_date,
-    p2_to_p3_date = target_info$p2_to_p3_date,
-    p3_to_p4_date = target_info$p3_to_p4_date,
+    ## intial value setup move to get_initial_values()
+    # p1_to_p2_date = target_info$p1_to_p2_date,
+    # p2_to_p3_date = target_info$p2_to_p3_date,
+    # p3_to_p4_date = target_info$p3_to_p4_date,
     ### pin_date updatec 20201130
     # lockdown_date = state_info$lock_down_date[which(state_info$alpha_code == state_ac)],
     # reopen_date = state_info$reopen_date[which(state_info$alpha_code == state_ac)],
@@ -812,10 +843,12 @@ get_initial_values <- function(state_ac)
   }
   
 
-  if(use_best_result==T){
-    path <- glue("inputs/{country}_best_record.csv")
-  }else if (use_best_result==F) {
-    path <- glue("inputs/{country}_initial_values.csv")
+  if (use_best_result == T) {
+    path <-
+      glue("inputs/initial_value_and_best_record/{country}_best_record.csv")
+  } else if (use_best_result == F) {
+    path <-
+      glue("inputs/initial_value_and_best_record/{country}_initial_values.csv")
   }
   
   ## import
@@ -876,7 +909,7 @@ score_function <- function(dd_para, s_para, obs_data_kit)
     SEIRD_pred <- get_SEIRD_timeseries(param_set)
   }
 
-  
+
   ## calculate the chi-square score
   {
     score <- 0
@@ -1550,6 +1583,7 @@ make_plots <- function(state_ac,t_end=Sys.time(),rds_folder)
       }
         return(temp_plot)
     }
+  
   plots_by_state_path <-
     glue("outputs/{country}/plots_by_state/{state_ac}")
   if (!dir.exists(plots_by_state_path))
@@ -1558,338 +1592,373 @@ make_plots <- function(state_ac,t_end=Sys.time(),rds_folder)
   ### ploting begin
 
   ## plot of cumulative, prediction Vs observed
-  
-  # cumulative I1,  prediction*test_fraction Vs observed
-  temp_plot <- ggplot() +
-    geom_line(aes(y = SEIRD_pred$cumulative_I1*test_fraction, x = SEIRD_pred$date),
-              color = "red") +
-    geom_point(aes(y = target_data$case$cumulative_cases, x = target_data$case$date), color = "blue") +
-    labs(
-      x = "Date",
-      y = "cumulative_I1",
-      title = paste0(state_ac," cumulative I1,  prediction*test_fraction Vs observed"),
-      subtitle = paste0("number of phases=", number_of_phase,"      test_fraction=",test_fraction)
-    )
-  
-  temp_plot <- Add_timestamp_vline(temp_plot)
-  ggsave(glue("{country}_{state_ac}_cumulative_I1.png"),
-       plot = temp_plot,
-       path = plots_by_state_path)
-  
-  # cumulative I1, observed data follow by future prediction
-  temp_pred <- SEIRD_pred %>% filter(date >= beginning_of_future)
-  temp_plot <- ggplot() +
-    geom_line(aes(y = temp_pred$cumulative_I1*test_fraction, x = temp_pred$date),
-              color = "red") +
-    geom_point(aes(y = target_data$case$cumulative_cases, x = target_data$case$date), color = "blue") +
-    labs(
-      x = "Date",
-      y = "cumulative_I1",
-      title = paste0(state_ac," cumulative I1,  prediction*test_fraction Vs observed"),
-      subtitle = paste0("number of phases=", number_of_phase,"   test_fraction=",test_fraction)
-    )
-  
-  temp_plot <- Add_timestamp_vline(temp_plot,skip=TRUE)
-  ggsave(glue("{country}_{state_ac}_cumulative_I1_filtered.png"),
-       plot = temp_plot,
-       path = plots_by_state_path)
-  
-
-  # cumulative I2+I3 prediction Vs observed
-  if (obs_data_kit$hosp_flag == "cumulative")
   {
+    # cumulative I1,  prediction*test_fraction Vs observed
     temp_plot <- ggplot() +
-      geom_line(aes(
-        y = SEIRD_pred$cumulative_I2_I3 * hosp_fraction,
-        x = SEIRD_pred$date
-      ),
-      color = "red") +
-      geom_point(
-        aes(
-          y = target_data$hosp$cumulative_hospitalized,
-          x = target_data$hosp$date
-        ),
-        color = "blue"
-      ) +
+      geom_line(aes(y = SEIRD_pred$cumulative_I1 * test_fraction,
+                    x = SEIRD_pred$date),
+                color = "red") +
+      geom_point(aes(y = target_data$case$cumulative_cases,
+                     x = target_data$case$date),
+                 color = "blue") +
       labs(
         x = "Date",
-        y = "cumulative_I2_plus_I3",
-        title = paste0(
-          state_ac,
-          " cumulative_I2_plus_I3,  prediction*hosp_fraction Vs observed"
-        ),
+        y = "cumulative_I1",
+        title = paste0(state_ac,
+                       " cumulative I1,  prediction*test_fraction Vs observed"),
         subtitle = paste0(
           "number of phases=",
           number_of_phase,
-          "   hosp_fraction=",
-          hosp_fraction
+          "      test_fraction=",
+          test_fraction
         )
       )
     
     temp_plot <- Add_timestamp_vline(temp_plot)
+    ggsave(glue("{country}_{state_ac}_cumulative_I1.png"),
+           plot = temp_plot,
+           path = plots_by_state_path)
+    
+    # cumulative I1, observed data follow by future prediction
+    temp_pred <- SEIRD_pred %>% filter(date >= beginning_of_future)
+    temp_plot <- ggplot() +
+      geom_line(aes(y = temp_pred$cumulative_I1 * test_fraction,
+                    x = temp_pred$date),
+                color = "red") +
+      geom_point(aes(y = target_data$case$cumulative_cases,
+                     x = target_data$case$date),
+                 color = "blue") +
+      labs(
+        x = "Date",
+        y = "cumulative_I1",
+        title = paste0(state_ac,
+                       " cumulative I1,  prediction*test_fraction Vs observed"),
+        subtitle = paste0(
+          "number of phases=",
+          number_of_phase,
+          "   test_fraction=",
+          test_fraction
+        )
+      )
+    
+    temp_plot <- Add_timestamp_vline(temp_plot, skip = TRUE)
     ggsave(
-      glue("{country}_{state_ac}_cumulative_I2_plus_I3.png"),
+      glue("{country}_{state_ac}_cumulative_I1_filtered.png"),
       plot = temp_plot,
       path = plots_by_state_path
     )
-  }
-  # X cumulative I2+I3, observed data follow by future prediction
+    
+    
+    # cumulative I2+I3 prediction Vs observed
+    if (obs_data_kit$hosp_flag == "cumulative")
+    {
+      temp_plot <- ggplot() +
+        geom_line(aes(
+          y = SEIRD_pred$cumulative_I2_I3 * hosp_fraction,
+          x = SEIRD_pred$date
+        ),
+        color = "red") +
+        geom_point(
+          aes(
+            y = target_data$hosp$cumulative_hospitalized,
+            x = target_data$hosp$date
+          ),
+          color = "blue"
+        ) +
+        labs(
+          x = "Date",
+          y = "cumulative_I2_plus_I3",
+          title = paste0(
+            state_ac,
+            " cumulative_I2_plus_I3,  prediction*hosp_fraction Vs observed"
+          ),
+          subtitle = paste0(
+            "number of phases=",
+            number_of_phase,
+            "   hosp_fraction=",
+            hosp_fraction
+          )
+        )
+      
+      temp_plot <- Add_timestamp_vline(temp_plot)
+      ggsave(
+        glue("{country}_{state_ac}_cumulative_I2_plus_I3.png"),
+        plot = temp_plot,
+        path = plots_by_state_path
+      )
+    }
+    # X cumulative I2+I3, observed data follow by future prediction
+    
+    
+    
+    # cumulative D prediction Vs observed
+    temp_plot <- ggplot() +
+      geom_line(aes(y = SEIRD_pred$D,
+                    x = SEIRD_pred$date),
+                color = "red") +
+      geom_point(aes(
+        y = target_data$death$cumulative_deaths,
+        x = target_data$death$date
+      ),
+      color = "blue") +
+      labs(
+        x = "Date",
+        y = "cumulative_D",
+        title = paste0(state_ac,
+                       " cumulative_D,  prediction Vs observed"),
+        subtitle = paste0("number of phases=",
+                          number_of_phase)
+      )
+    
+     temp_plot <- Add_timestamp_vline(temp_plot)
+     ggsave(glue("{country}_{state_ac}_cumulative_D.png"),
+           plot = temp_plot,
+           path = plots_by_state_path)
+    
+     # X cumulative D, observed data follow by future prediction
+    }
 
-  
-  
-  # cumulative D prediction Vs observed
-  temp_plot <- ggplot() +
-    geom_line(aes(y = SEIRD_pred$D,
-                  x = SEIRD_pred$date),
-              color = "red") +
-    geom_point(aes(y = target_data$death$cumulative_deaths, x = target_data$death$date),
-               color = "blue") +
-    labs(
-      x = "Date",
-      y = "cumulative_D",
-      title = paste0(state_ac,
-                     " cumulative_D,  prediction Vs observed"),
-      subtitle = paste0("number of phases=",
-                        number_of_phase)
-    )
-  
-  temp_plot <- Add_timestamp_vline(temp_plot)
-  ggsave(glue("{country}_{state_ac}_cumulative_D.png"),
-       plot = temp_plot,
-       path = plots_by_state_path)
-  
-  # X cumulative D, observed data follow by future prediction
-  
   
   
   ## plots of increase, prediction Vs observed
-  
-  ## I1_increase
-  # I1_increase, Predicted*test_fraction VS observed
-  temp_plot <-
-    ggplot() +
-    geom_line(aes(
-      y = SEIRD_pred$I1_increase[-1] * test_fraction,
-      x = SEIRD_pred$date[-1]
-    ),
-    color = "red") +
-    geom_point(aes(y = obs_data_kit$I1_obs, x = reference_date + obs_data_kit$I1_obsdays),
-               color = "blue") +
-    labs(
-      x = "Date",
-      y = "I1_increase",
-      title = paste0(state_ac," I1_increase, Predicted*test_fraction VS observed"),
-      subtitle = paste0("number of phases=", number_of_phase,"   test_fraction=",test_fraction)
-    )
-  
-  temp_plot <- Add_timestamp_vline(temp_plot)
-  ggsave(glue("{country}_{state_ac}_I1_increase.png"),
-       plot = temp_plot,
-       path = plots_by_state_path)
-  
-  # I1_increase, zoomed version
-  temp_plot <- temp_plot +
-    coord_cartesian(xlim = c(
-      max(
-        parse_date("2020-02-01"),
-        reference_date + min(obs_data_kit$I1_obsdays) - 30
-      ),
-      reference_date + max(obs_data_kit$I1_obsdays) + 30
-    ),
-    ylim = c(0, max(obs_data_kit$I1_obs) * 1.1))
-   
-  ggsave(glue("{country}_{state_ac}_I1_increase_zoomed.png"),
-       plot = temp_plot,
-       path = plots_by_state_path)
-  
-  # I1_increase, observed data follow by future prediction
-  temp_pred <- SEIRD_pred %>% filter(date >= beginning_of_future)
-  temp_plot <-
-    ggplot() +
-    geom_line(aes(y = temp_pred$I1_increase * test_fraction,
-                  x = temp_pred$date),
-              color = "red") +
-    geom_point(aes(y = obs_data_kit$I1_obs, x = reference_date + obs_data_kit$I1_obsdays),
-               color = "blue") +
-    labs(
-      x = "Date",
-      y = "I1_increase",
-      title = paste0(state_ac, " I1_increase, Predicted*test_fraction VS observed"),
-      subtitle = paste0(
-        "number of phases=",
-        number_of_phase,
-        "   test_fraction=",
-        test_fraction
-      )
-    )
-  
-  temp_plot <- Add_timestamp_vline(temp_plot)
-  ggsave(glue("{country}_{state_ac}_I1_increase_ofbp.png"),
-       plot = temp_plot,
-       path = plots_by_state_path)
-  
-  
-  ## I2+I3 increase (hosp)
-  if (obs_data_kit$hosp_flag == "cumulative")
   {
-    # I2+I3_increase, Predicted*test_fraction VS observed
+    ## I1_increase
+    # I1_increase, Predicted*test_fraction VS observed
     temp_plot <-
       ggplot() +
-      geom_line(aes(
-        y = SEIRD_pred$hosp_increase[-1] * hosp_fraction,
-        x = SEIRD_pred$date[-1]
-      ),
-      color = "red") +
-      geom_point(
-        aes(
-          y = obs_data_kit$hosp_obs,
-          x = reference_date + obs_data_kit$hosp_obsdays
-        ),
-        color = "blue"
-      ) +
+      geom_line(aes(y = SEIRD_pred$I1_increase[-1] * test_fraction,
+                    x = SEIRD_pred$date[-1]),
+                color = "red") +
+      geom_point(aes(y = obs_data_kit$I1_obs, x = reference_date + obs_data_kit$I1_obsdays),
+                 color = "blue") +
       labs(
         x = "Date",
-        y = "I2_plus_I3_increase",
-        title = paste0(
-          state_ac,
-          " I2_plus_I3_increase, Predicted*hosp_fraction VS observed"
-        ),
+        y = "I1_increase",
+        title = paste0(state_ac, " I1_increase, Predicted*test_fraction VS observed"),
         subtitle = paste0(
           "number of phases=",
           number_of_phase,
-          "   hosp_fraction=",
-          hosp_fraction
+          "   test_fraction=",
+          test_fraction
         )
       )
     
     temp_plot <- Add_timestamp_vline(temp_plot)
-    ggsave(
-      glue("{country}_{state_ac}_I2_plus_I3_increase.png"),
-      plot = temp_plot,
-      path = plots_by_state_path
-    )
+    ggsave(glue("{country}_{state_ac}_I1_increase.png"),
+           plot = temp_plot,
+           path = plots_by_state_path)
     
-    hosp_plot <- temp_plot
+    I1_plot <- temp_plot
     
-    # I2+I3_increase, zoomed version
+    # I1_increase, zoomed version
     temp_plot <- temp_plot +
       coord_cartesian(xlim = c(
         max(
           parse_date("2020-02-01"),
-          reference_date + min(obs_data_kit$hosp_obsdays) - 30
+          reference_date + min(obs_data_kit$I1_obsdays) - 30
         ),
-        reference_date + max(obs_data_kit$hosp_obsdays) + 30
+        reference_date + max(obs_data_kit$I1_obsdays) + 30
       ),
-      ylim = c(0, max(obs_data_kit$hosp_obs) * 1.1))
+      ylim = c(0, max(obs_data_kit$I1_obs) * 1.1))
     
     ggsave(
-      glue("{country}_{state_ac}_I2_plus_I3_increase_zoomed.png"),
+      glue("{country}_{state_ac}_I1_increase_zoomed.png"),
       plot = temp_plot,
       path = plots_by_state_path
     )
     
-    # I2+I3_increase, observed data follow by future prediction
-    temp_pred <-
-      SEIRD_pred %>% filter(date >= beginning_of_future)
+    # I1_increase, observed data follow by future prediction
+    temp_pred <- SEIRD_pred %>% filter(date >= beginning_of_future)
     temp_plot <-
       ggplot() +
-      geom_line(aes(
-        y = temp_pred$hosp_increase * hosp_fraction,
-        x = temp_pred$date
-      ),
-      color = "red") +
-      geom_point(
-        aes(
-          y = obs_data_kit$hosp_obs,
-          x = reference_date + obs_data_kit$hosp_obsdays
-        ),
-        color = "blue"
-      ) +
+      geom_line(aes(y = temp_pred$I1_increase * test_fraction,
+                    x = temp_pred$date),
+                color = "red") +
+      geom_point(aes(y = obs_data_kit$I1_obs, x = reference_date + obs_data_kit$I1_obsdays),
+                 color = "blue") +
       labs(
         x = "Date",
-        y = "I2_plus_I3_increase",
-        title = paste0(
-          state_ac,
-          " I2_plus_I3_increase, Predicted*hosp_fraction VS observed"
-        ),
+        y = "I1_increase",
+        title = paste0(state_ac, " I1_increase, Predicted*test_fraction VS observed"),
         subtitle = paste0(
           "number of phases=",
           number_of_phase,
-          "   hosp_fraction=",
-          hosp_fraction
+          "   test_fraction=",
+          test_fraction
         )
       )
     
     temp_plot <- Add_timestamp_vline(temp_plot)
     ggsave(
-      glue("{country}_{state_ac}_I2_plus_I3_increase_ofbp.png"),
+      glue("{country}_{state_ac}_I1_increase_ofbp.png"),
+      plot = temp_plot,
+      path = plots_by_state_path
+    )
+    
+    
+    ## I2+I3 increase (hosp)
+    if (obs_data_kit$hosp_flag == "cumulative")
+    {
+      # I2+I3_increase, Predicted*test_fraction VS observed
+      temp_plot <-
+        ggplot() +
+        geom_line(aes(
+          y = SEIRD_pred$hosp_increase[-1] * hosp_fraction,
+          x = SEIRD_pred$date[-1]
+        ),
+        color = "red") +
+        geom_point(
+          aes(
+            y = obs_data_kit$hosp_obs,
+            x = reference_date + obs_data_kit$hosp_obsdays
+          ),
+          color = "blue"
+        ) +
+        labs(
+          x = "Date",
+          y = "I2_plus_I3_increase",
+          title = paste0(
+            state_ac,
+            " I2_plus_I3_increase, Predicted*hosp_fraction VS observed"
+          ),
+          subtitle = paste0(
+            "number of phases=",
+            number_of_phase,
+            "   hosp_fraction=",
+            hosp_fraction
+          )
+        )
+      
+      temp_plot <- Add_timestamp_vline(temp_plot)
+      ggsave(
+        glue("{country}_{state_ac}_I2_plus_I3_increase.png"),
+        plot = temp_plot,
+        path = plots_by_state_path
+      )
+      
+      hosp_plot <- temp_plot
+      
+      # I2+I3_increase, zoomed version
+      temp_plot <- temp_plot +
+        coord_cartesian(xlim = c(
+          max(
+            parse_date("2020-02-01"),
+            reference_date + min(obs_data_kit$hosp_obsdays) - 30
+          ),
+          reference_date + max(obs_data_kit$hosp_obsdays) + 30
+        ),
+        ylim = c(0, max(obs_data_kit$hosp_obs) * 1.1))
+      
+      ggsave(
+        glue("{country}_{state_ac}_I2_plus_I3_increase_zoomed.png"),
+        plot = temp_plot,
+        path = plots_by_state_path
+      )
+      
+      # I2+I3_increase, observed data follow by future prediction
+      temp_pred <-
+        SEIRD_pred %>% filter(date >= beginning_of_future)
+      temp_plot <-
+        ggplot() +
+        geom_line(aes(
+          y = temp_pred$hosp_increase * hosp_fraction,
+          x = temp_pred$date
+        ),
+        color = "red") +
+        geom_point(
+          aes(
+            y = obs_data_kit$hosp_obs,
+            x = reference_date + obs_data_kit$hosp_obsdays
+          ),
+          color = "blue"
+        ) +
+        labs(
+          x = "Date",
+          y = "I2_plus_I3_increase",
+          title = paste0(
+            state_ac,
+            " I2_plus_I3_increase, Predicted*hosp_fraction VS observed"
+          ),
+          subtitle = paste0(
+            "number of phases=",
+            number_of_phase,
+            "   hosp_fraction=",
+            hosp_fraction
+          )
+        )
+      
+      temp_plot <- Add_timestamp_vline(temp_plot)
+      ggsave(
+        glue("{country}_{state_ac}_I2_plus_I3_increase_ofbp.png"),
+        plot = temp_plot,
+        path = plots_by_state_path
+      )
+    }
+    
+    
+    ## D_increase
+    # D_increase, Predicted VS observed
+    temp_plot <-
+      ggplot() +
+      geom_line(aes(y = SEIRD_pred$D_increase[-1],
+                    x = SEIRD_pred$date[-1]),
+                color = "red") +
+      geom_point(aes(y = obs_data_kit$D_obs, x = reference_date + obs_data_kit$D_obsdays),
+                 color = "blue") +
+      labs(
+        x = "Date",
+        y = "D_increase",
+        title = paste0(state_ac, " D_increase, Predicted VS observed"),
+        subtitle = paste0("number of phases=", number_of_phase)
+      )
+    
+    temp_plot <- Add_timestamp_vline(temp_plot)
+    ggsave(glue("{country}_{state_ac}_D_increase.png"),
+           plot = temp_plot,
+           path = plots_by_state_path)
+    
+    # D_increase, zoomed version
+    temp_plot <- temp_plot +
+      coord_cartesian(xlim = c(
+        max(
+          parse_date("2020-02-01"),
+          reference_date + min(obs_data_kit$D_obsdays) - 30
+        ),
+        reference_date + max(obs_data_kit$D_obsdays) + 30
+      ),
+      ylim = c(0, max(obs_data_kit$D_obs) * 1.1))
+    
+    ggsave(
+      glue("{country}_{state_ac}_D_increase_zoomed.png"),
+      plot = temp_plot,
+      path = plots_by_state_path
+    )
+    
+    # D_increase, observed data follow by future prediction
+    temp_pred <- SEIRD_pred %>% filter(date >= beginning_of_future)
+    temp_plot <-
+      ggplot() +
+      geom_line(aes(y = temp_pred$D_increase,
+                    x = temp_pred$date),
+                color = "red") +
+      geom_point(aes(y = obs_data_kit$D_obs, x = reference_date + obs_data_kit$D_obsdays),
+                 color = "blue") +
+      labs(
+        x = "Date",
+        y = "D_increase",
+        title = paste0(state_ac, " D_increase, Predicted VS observed"),
+        subtitle = paste0("number of phases=",
+                          number_of_phase)
+      )
+    
+    temp_plot <- Add_timestamp_vline(temp_plot)
+    ggsave(
+      glue("{country}_{state_ac}_D_increase_ofbp.png"),
       plot = temp_plot,
       path = plots_by_state_path
     )
   }
 
-  
-  ## D_increase
-  # D_increase, Predicted VS observed
-  temp_plot <-
-    ggplot() +
-    geom_line(aes(
-      y = SEIRD_pred$D_increase[-1],
-      x = SEIRD_pred$date[-1]
-    ),
-    color = "red") +
-    geom_point(aes(y = obs_data_kit$D_obs, x = reference_date + obs_data_kit$D_obsdays),
-               color = "blue") +
-    labs(
-      x = "Date",
-      y = "D_increase",
-      title = paste0(state_ac," D_increase, Predicted VS observed"),
-      subtitle = paste0("number of phases=", number_of_phase)
-    )
-  
-  temp_plot <- Add_timestamp_vline(temp_plot)
-  ggsave(glue("{country}_{state_ac}_D_increase.png"),
-       plot = temp_plot,
-       path = plots_by_state_path)
-  
-  # D_increase, zoomed version
-  temp_plot <- temp_plot +
-    coord_cartesian(xlim = c(
-      max(
-        parse_date("2020-02-01"),
-        reference_date + min(obs_data_kit$D_obsdays) - 30
-      ),
-      reference_date + max(obs_data_kit$D_obsdays) + 30
-    ),
-    ylim = c(0, max(obs_data_kit$D_obs) * 1.1))
-   
-  ggsave(glue("{country}_{state_ac}_D_increase_zoomed.png"),
-       plot = temp_plot,
-       path = plots_by_state_path) 
-  
-  # D_increase, observed data follow by future prediction
-  temp_pred <- SEIRD_pred %>% filter(date >= beginning_of_future)
-  temp_plot <-
-    ggplot() +
-    geom_line(aes(y = temp_pred$D_increase,
-                  x = temp_pred$date),
-              color = "red") +
-    geom_point(aes(y = obs_data_kit$D_obs, x = reference_date + obs_data_kit$D_obsdays),
-               color = "blue") +
-    labs(
-      x = "Date",
-      y = "D_increase",
-      title = paste0(state_ac, " D_increase, Predicted VS observed"),
-      subtitle = paste0(
-        "number of phases=",
-        number_of_phase
-      )
-    )
-  
-  temp_plot <- Add_timestamp_vline(temp_plot)
-  ggsave(glue("{country}_{state_ac}_D_increase_ofbp.png"),
-       plot = temp_plot,
-       path = plots_by_state_path)
   
 
   
@@ -1937,8 +2006,7 @@ make_plots <- function(state_ac,t_end=Sys.time(),rds_folder)
   ## the plot of beta1t
   ## to see the data-driven parameters
   temp_plot <- ggplot() +
-    geom_line(aes(x = SEIRD_pred$date, y = build_beta1t(supt_para, s_para$delta)), color =
-                "red") +
+    geom_line(aes(x = SEIRD_pred$date, y = build_beta1t(supt_para, s_para$delta)), color ="red") +
     labs(
       x = "Date",
       y = "beta1t",
@@ -2012,19 +2080,17 @@ make_plots <- function(state_ac,t_end=Sys.time(),rds_folder)
     )
     I1_plot <- temp_plot
     
-
-    ## the final I1 and hosp compare plot
-    ggsave(
-      glue("{country}_{state_ac}_I1_and_hosp.png"),
-      plot = I1_plot + hosp_plot,
-      path = plots_by_state_path,
-      width = 16,
-      height = 8,
-      units = "in"
-    )
-
-
   }
+  
+  ## the final I1 and hosp compare plot
+  ggsave(
+    glue("{country}_{state_ac}_I1_and_hosp.png"),
+    plot = I1_plot + hosp_plot,
+    path = plots_by_state_path,
+    width = 16,
+    height = 8,
+    units = "in"
+  )
   
   ## the SEIRD plots
   {
@@ -2261,7 +2327,7 @@ dd_to_supt <- function(dd_para)
 # beep(sound = 1, expr = NULL)
 ```
 
-## for debug: replot
+## for debug
 ```{r}
 for (state_ac in state) {
   make_plots(state_ac)
@@ -2271,7 +2337,51 @@ beep()
 
 temp_pred <- readRDS(file.choose())
 
-write_csv(state_info,glue("inputs/{country}_state_info.csv"))
+## create initial_values.csv and best_record.csv
+{
+  write_csv(state_info,
+            glue("inputs/state_info/{country}_state_info.csv"))
+  write_csv(temp,
+            glue(
+              "inputs/initial_value_and_best_record/{country}_initial_values.csv"
+            ))
+  write_csv(temp2,
+            glue(
+              "inputs/initial_value_and_best_record/{country}_best_record.csv"
+            ))
+  
+  temp <- CA_state_info %>%
+    select(-population) %>%
+    mutate(
+      test_fraction = 0.1,
+      hosp_fraction = 0.7,
+      t0_date = parse_date("2020-03-01"),
+      R0 = 3.4,
+      p1_to_p2_date = parse_date("2020-04-01"),
+      eps2 = 0.3,
+      p2_to_p3_date = parse_date("2020-06-15"),
+      eps3 = 0.3,
+      p3_to_p4_date = parse_date("2020-10-01"),
+      eps4 = 0.5
+    )
+  temp2 <- temp %>%
+    mutate(
+      beta_1 = 0,
+      beta_2 = 0,
+      beta_3 = 0,
+      beta_4 = 0,
+      case_and_hosp_score = 1e10,
+      death_score = 1e10,
+      time = Sys.time()
+    )
+}
+
+## so_far_the_best replot
+for (state_ac in state) {
+  rds_folder <- glue("so_far_the_best/{country}/temp_rds/{state_ac}")
+  make_plots(state_ac,Sys.time(),rds_folder)
+  print(state_ac)
+}
 ```
 
 
@@ -2281,22 +2391,18 @@ write_csv(state_info,glue("inputs/{country}_state_info.csv"))
 ### PENDING: explain the parameters
 
 ## target setup
-# for "US", data_source "can" and "f_1m3f" is available.
-# for "CA", data_source "c19ca" and "f_1m3f" is available.
-country <- "US"  # "US" or "CA"
-#data_source <- "1m3f" # "can", "1m3f" or "c19ca"
+country <- "CA"  # "US" or "CA"
 
-
-# select state or run for all state
+# select state 
 # available state list for CA:
-# c("AB","BC","CA","MB","NB","NL","NS","ON","QC","SK")
+# c("AB","BC","MB","NL","NS","ON","QC") # 20200105 remove NB, SK because of low infection increase (<20)
 # available state list for US:
 # c("AL","AK","AZ","AR","CA","CO","CT","DE","DC","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY")
-state <-  c("AL","AK","AZ","AR","CA","CO","CT","DE","DC","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY") #c("IL","NY", "FL", "CA") # c("CA")
+state <- c("BC") #"BC" #c("IL","NY", "FL", "CA") # c("CA")
 
 ## basic setup
 # state_info <- get_state_info()
-state_info <- read_csv(glue("inputs/{country}_state_info.csv"))
+state_info <- read_csv(glue("inputs/state_info/{country}_state_info.csv"))
 reference_date <- parse_date("2020-01-01")
 # reference_date is needed in optimizing the t0, the beginning date of the pandemic
 days_between_phases <- 14
@@ -2312,9 +2418,19 @@ last_date_with_available_data <- Sys.Date()
 n_sample <- 5000
 
 ### 20201208 mix_datasource_update
-case_datasource <- "f_1m3f"          # valid options:"can_US","esri_CA","f_1m3f"
-hosp_datasource <- "can_US"             # valid options:"can_US","esri_CA"
-death_datasource <- "f_1m3f"         # valid options:"can_US","esri_CA","f_1m3f"
+if (country=="US"){
+  case_datasource <- "f_1m3f"          # valid options:"can_US","esri_CA","f_1m3f"
+  hosp_datasource <- "can_US"             # valid options:"can_US","esri_CA"
+  death_datasource <-  "f_1m3f"         # valid options:"can_US","esri_CA","f_1m3f"
+} else if (country == "CA") {
+  case_datasource <-
+    "f_1m3f"          # valid options:"can_US","esri_CA","f_1m3f"
+  hosp_datasource <-
+    "esri_CA"             # valid options:"can_US","esri_CA"
+  death_datasource <-
+    "f_1m3f"         # valid options:"can_US","esri_CA","f_1m3f"
+}
+
 
 ## the observed SEIRD variables that are used in the score calculation
 use_case <- T
@@ -2322,7 +2438,7 @@ use_hosp <- T
 use_death <- F 
 
 ## for data-driven parameter
-use_best_result <- T
+use_best_result <- F
 # use date (pin-policy update) or use duration?
 overwrite_initial_dd_parameter <- T  ### broken, a change in build_beta_t is leak, stay true please
 # the number of time phase. Now with pinned policy it must be 3.
