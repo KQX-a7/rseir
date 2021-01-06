@@ -1,7 +1,7 @@
 ---
 title: "README"
 author: "QingXuan Kong"
-date: "2020/9/29"
+date: "2021/01/05"
 output:
       html_document:
         keep_md: true
@@ -37,6 +37,16 @@ Rseir is developed by me(QingXuan Kong), as part of the Educational Research pro
 * If you are looking for plots for a specific state, go to "outputs/plots_by_state". If you are looking for plots for a specific type, go to "outputs/plots".
 
 ## updata history
+
+### 20200105
+initial value update complete
+
+Now you can setup initial value for each state in inputs/initial_value_and_best_record/{country}_initial_values.csv.
+
+The parameter set that produce the best output so far are in inputs/initial_value_and_best_record/{country}_best_record.csv. The corresponding output is in so_far_the_best folder.
+
+### 20201208
+Mix data source update
 
 ### 20201130
 change score from sum of error to mean of error. (for balance)
