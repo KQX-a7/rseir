@@ -165,8 +165,10 @@ rpyseir <- function()
 
       ## if better then save to best_record.csv
       {
-        previous_best_record <-
-          read_csv(glue("inputs/initial_value_and_best_record/{country}_best_record.csv"))
+        suppressMessages(previous_best_record <-
+                           read_csv(glue(
+                               "inputs/initial_value_and_best_record/{country}_best_record.csv"
+                             )))
         target_best_record <-
           previous_best_record %>% filter(alpha_code == state_ac)
         target_best_score <-
@@ -447,8 +449,13 @@ parse_observed_data_for_score_calculation <- function(state_ac,rds_folder)
     target_timeseries_list <- list()
     
     if ("can_US" %in% c(case_datasource, hosp_datasource, death_datasource)) {
-      can_US_raw_timeseries <-
-        read_csv(glue("{observed_dataset_folder}/can_US_dataset/US_timeseries.csv"), col_types = "cDcccciiiiiiiiiiiiii")
+      suppressMessages(can_US_raw_timeseries <-
+                         read_csv(
+                           glue(
+                             "{observed_dataset_folder}/can_US_dataset/US_timeseries.csv"
+                           ),
+                           col_types = "cDcccciiiiiiiiiiiiii"
+                         ))
       can_US_target_timeseries <- can_US_raw_timeseries %>%
         filter(
           aggregate_level == "state",
@@ -497,8 +504,13 @@ parse_observed_data_for_score_calculation <- function(state_ac,rds_folder)
     }
     
     if ("esri_CA" %in% c(case_datasource, hosp_datasource, death_datasource)) {
-      esri_CA_raw_timeseries <-
-        read_csv(glue("{observed_dataset_folder}/esri_CA_dataset/CA_timeseries.csv"), col_types = "icciciiiiiiiiiiiii")
+      suppressMessages(esri_CA_raw_timeseries <-
+                         read_csv(
+                           glue(
+                             "{observed_dataset_folder}/esri_CA_dataset/CA_timeseries.csv"
+                           ),
+                           col_types = "icciciiiiiiiiiiiii"
+                         ))
       
       esri_CA_target_timeseries <- esri_CA_raw_timeseries %>%
         mutate(date = parse_date(str_sub(SummaryDate, end = 10))) %>%
@@ -541,10 +553,12 @@ parse_observed_data_for_score_calculation <- function(state_ac,rds_folder)
     }
     
     if ("f_1m3f" %in% c(case_datasource, hosp_datasource, death_datasource)) {
-      f_1m3f_raw_timeseries <-
-        read_csv(glue(
-          "{observed_dataset_folder}/f_1m3f_dataset/{country}_timeseries.csv"
-        ))
+      suppressMessages(f_1m3f_raw_timeseries <-
+                         read_csv(
+                           glue(
+                             "{observed_dataset_folder}/f_1m3f_dataset/{country}_timeseries.csv"
+                           )
+                         ))
       f_1m3f_target_timeseries <-  f_1m3f_raw_timeseries %>%
         filter(
           state_name == state_ac,
@@ -852,12 +866,16 @@ get_initial_values <- function(state_ac)
   }
   
   ## import
-  initial_dd_parameter <-
-    read_csv(path) %>%
-    filter(alpha_code == state_ac) %>%
-    select(test_fraction:eps4) %>%
-    mutate(across(contains("date"),  ~ as.integer(.x - reference_date))) %>% 
-    as.numeric()
+  suppressMessages(
+    initial_dd_parameter <-
+      read_csv(path) %>%
+      filter(alpha_code == state_ac) %>%
+      select(test_fraction:eps4) %>%
+      mutate(across(
+        contains("date"),  ~ as.integer(.x - reference_date)
+      )) %>%
+      as.numeric()
+  )
   
   ## prepare boundary
   dd_parameter_upper <- c(0.5, 1, 75, 4.5, 60, 1.2, 100, 2, 120, 2)
@@ -1375,8 +1393,12 @@ make_plots <- function(state_ac,t_end=Sys.time(),rds_folder)
     readRDS(file = glue("{rds_folder}/{country}_{state_ac}_sampling_para.rds"))
   obs_data_kit <-
     readRDS(file = glue("{rds_folder}/{country}_{state_ac}_observed_data_kit.rds"))
-  SEIRD_pred <-
-    read_csv(file = glue("outputs/{country}/SEIRD_data/{country}_{state_ac}_SEIRD_pred.csv"))
+  suppressMessages(SEIRD_pred <-
+                     read_csv(
+                       file = glue(
+                         "outputs/{country}/SEIRD_data/{country}_{state_ac}_SEIRD_pred.csv"
+                       )
+                     ))
   target_data <- 
     readRDS(file = glue("{rds_folder}/{country}_{state_ac}_target_data.rds"))
   
@@ -2323,7 +2345,6 @@ dd_to_supt <- function(dd_para)
   return(supt_para)
 }
 
-
 # beep(sound = 1, expr = NULL)
 ```
 
@@ -2401,38 +2422,40 @@ country <- "CA"  # "US" or "CA"
 state <- c("BC") #"BC" #c("IL","NY", "FL", "CA") # c("CA")
 
 ## basic setup
-# state_info <- get_state_info()
-state_info <- read_csv(glue("inputs/state_info/{country}_state_info.csv"))
+suppressMessages(state_info <-
+                   read_csv(glue(
+                     "inputs/state_info/{country}_state_info.csv"
+                   )))
+# reference_date is needed in optimizing the t0, the beginning date of the pandemic. Any date before the pandemic will work
 reference_date <- parse_date("2020-01-01")
-# reference_date is needed in optimizing the t0, the beginning date of the pandemic
+# the duration of the transition period
 days_between_phases <- 14
 # smoothing window radius. window_radius = 1 is equal to a window of 3
 window_radius <- 3
-# days between different time phase, for smoothing
-total_days <- 365
 # the total length of the SEIRD timeseries, include the past and the future
-# set this to a past date to get a "past prediction"
+total_days <- 365
+# set this to a past date to get a "past prediction" 
+# "past prediction" feature is deprecated. Do not change it.
 last_date_with_available_data <- Sys.Date()
 
 ## for sampling parameter
 n_sample <- 5000
 
 ### 20201208 mix_datasource_update
+# "datasource switching" feature is deprecated. Do not change it.
 if (country=="US"){
   case_datasource <- "f_1m3f"          # valid options:"can_US","esri_CA","f_1m3f"
   hosp_datasource <- "can_US"             # valid options:"can_US","esri_CA"
   death_datasource <-  "f_1m3f"         # valid options:"can_US","esri_CA","f_1m3f"
 } else if (country == "CA") {
-  case_datasource <-
-    "f_1m3f"          # valid options:"can_US","esri_CA","f_1m3f"
-  hosp_datasource <-
-    "esri_CA"             # valid options:"can_US","esri_CA"
-  death_datasource <-
-    "f_1m3f"         # valid options:"can_US","esri_CA","f_1m3f"
+  case_datasource <- "f_1m3f"          # valid options:"can_US","esri_CA","f_1m3f"
+  hosp_datasource <- "esri_CA"             # valid options:"can_US","esri_CA"
+  death_datasource <- "f_1m3f"         # valid options:"can_US","esri_CA","f_1m3f"
 }
 
 
-## the observed SEIRD variables that are used in the score calculation
+## choose the observed SEIRD variables that are used in the score calculation
+## this feature is deprecated. do not change it
 use_case <- T
 use_hosp <- T 
 use_death <- F 
@@ -2440,19 +2463,21 @@ use_death <- F
 ## for data-driven parameter
 use_best_result <- F
 # use date (pin-policy update) or use duration?
+## this feature is deprecated. do not change it
 overwrite_initial_dd_parameter <- T  ### broken, a change in build_beta_t is leak, stay true please
-# the number of time phase. Now with pinned policy it must be 3.
+# the number of time phase.
+# this feature is deprecated. do not change it
 number_of_phase <- 4
 # the optimization radius of the policy date
+# larger value will produce unstable output. Should consider the initial value of pi_to_pj before changing or it might trigger the "negative duration error" 
 opt_radius_of_policydate <- 14
 
+
+## execution. Display the runtime at the end
 print(system.time(rpyseir()))
 
-### the code below is for debug
-## replot
-# make_plots(state_ac = state)
+## prompt. play sound when finished
 beep(sound = 1, expr = NULL)
-## to add phases: change setup_parameters, build_beta1t, vline function in make plot
 ```
 
 
