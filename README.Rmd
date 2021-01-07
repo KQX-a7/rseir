@@ -1,7 +1,7 @@
 ---
 title: "README"
 author: "QingXuan Kong"
-date: "2021/01/05"
+date: "2021/01/06"
 output:
       html_document:
         keep_md: true
@@ -40,7 +40,12 @@ Rseir is developed by me(QingXuan Kong), as part of the Educational Research pro
 
 ## updata history
 
-### 20200105
+### 20210106
+Now rseir will update its 1point3acres dataset every 48 hours.
+
+Adding a debug function that could aggregate the plot file for inspection purpose.
+
+### 20210105
 initial value update complete
 
 Now you can setup initial value for each state in inputs/initial_value_and_best_record/{country}_initial_values.csv.

@@ -45,7 +45,8 @@ library(beepr)
 rpyseir <- function()
 {
   
-  ### PENDING: check and report initial_dd_value
+  ## check for observed dataset update
+  check_for_update_1m3f()
   
   for (state_ac in state) 
   {
@@ -2345,7 +2346,31 @@ dd_to_supt <- function(dd_para)
   return(supt_para)
 }
 
-# beep(sound = 1, expr = NULL)
+check_for_update_1m3f <- function(force=F,skip=F)
+{
+  previous_update_time <-
+    readRDS("inputs/observed_timerseries_dataset/f_1m3f_dataset/previous_update_time.rds")
+  time_diff <-
+    as.numeric(Sys.time() - previous_update_time, units = "hours")
+  if (force == T || skip != T && time_diff > 48) {
+    cat("updating cached dataset","\n")
+    file.copy(from = "inputs/observed_timerseries_dataset/f_1m3f_dataset/US_timeseries.csv",
+              to = "inputs/observed_timerseries_dataset/f_1m3f_dataset/out_of_date",
+              overwrite = T)
+    file.copy(from = "inputs/observed_timerseries_dataset/f_1m3f_dataset/CA_timeseries.csv",
+              to = "inputs/observed_timerseries_dataset/f_1m3f_dataset/out_of_date",
+              overwrite = T)
+    download.file(url = "https://instant.1point3acres.com/v1/api/coronavirus/us/cases?token=K38mXWhI", destfile = "US_timeseries.csv")
+    download.file(url = "https://instant.1point3acres.com/v1/api/coronavirus/canada/cases?token=K38mXWhI", destfile = "CA_timeseries.csv")
+    
+    current_time <- Sys.time()
+    saveRDS(current_time,"inputs/observed_timerseries_dataset/f_1m3f_dataset/previous_update_time.rds")
+  } else {
+    cat("using the cached dataset","\n")
+  }
+}
+
+
 ```
 
 ## for debug
@@ -2403,6 +2428,44 @@ for (state_ac in state) {
   make_plots(state_ac,Sys.time(),rds_folder)
   print(state_ac)
 }
+
+## aggregating plot file for inspection
+{
+  move_plots <- function(origin_folder,re_exp,target_folder)
+  {
+    file_path <-
+      list.files(
+        path = origin_folder,
+        pattern = re_exp,
+        full.names = T,
+        recursive = T
+      )
+    
+    if(!dir.exists(target_folder)){
+      dir.create(target_folder,recursive = T)
+    }
+    
+    for (file in file_path) {
+      file.copy(from = file,to=target_folder,overwrite = T)
+    }
+  }
+  
+  moving_list <- c(
+    "so_far_the_best/US/plots_by_state","*I1_and_hosp.png",       "so_far_the_best/US/inspection/I1_and_hosp",
+    "so_far_the_best/US/plots_by_state","*D_increase_zoomed.png", "so_far_the_best/US/inspection/D_increase",        
+    "so_far_the_best/US/plots_by_state","*beta1t_and_dd_para.png","so_far_the_best/US/inspection/beta1t",         
+    "so_far_the_best/CA/plots_by_state","*I1_and_hosp.png",       "so_far_the_best/CA/inspection/I1_and_hosp",
+    "so_far_the_best/CA/plots_by_state","*D_increase_zoomed.png", "so_far_the_best/CA/inspection/D_increase",         
+    "so_far_the_best/CA/plots_by_state","*beta1t_and_dd_para.png","so_far_the_best/CA/inspection/beta1t"              
+  )
+  for (i in 1:6) {
+    move_plots(moving_list[1 + 3 * (i - 1)], moving_list[2 + 3 * (i - 1)], moving_list[3 +
+                                                                                         3 * (i - 1)])
+  }
+}
+
+download.file(url = "https://instant.1point3acres.com/v1/api/coronavirus/us/cases?token=K38mXWhI",destfile = "outputs/temp.csv")
+
 ```
 
 
@@ -2419,7 +2482,7 @@ country <- "CA"  # "US" or "CA"
 # c("AB","BC","MB","NL","NS","ON","QC") # 20200105 remove NB, SK because of low infection increase (<20)
 # available state list for US:
 # c("AL","AK","AZ","AR","CA","CO","CT","DE","DC","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY")
-state <- c("BC") #"BC" #c("IL","NY", "FL", "CA") # c("CA")
+state <- "BC" #"BC" #c("IL","NY", "FL", "CA") # c("CA")
 
 ## basic setup
 suppressMessages(state_info <-
