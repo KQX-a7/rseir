@@ -46,7 +46,7 @@ rpyseir <- function()
 {
   
   ## check for observed dataset update
-  check_for_update_1m3f()
+  check_for_update_1m3f(force_update,skip_update)
   
   for (state_ac in state) 
   {
@@ -268,7 +268,7 @@ rpyseir <- function()
       ## plots
       sftb_plot_folder <- glue("so_far_the_best/{country}/plots_by_state/{state_ac}")
       if(!dir.exists(sftb_plot_folder)){
-        dir.create(sftb_plot_folder)
+        dir.create(sftb_plot_folder,recursive = T)
       }
       plot_file_list <- list.files(glue("outputs/{country}/plots_by_state/{state_ac}/"),full.names = T)
       for (plot_file in plot_file_list) {
@@ -280,6 +280,10 @@ rpyseir <- function()
       }
       
       ## SEIRD_pred
+      
+      if (!dir.exists(glue("so_far_the_best/{country}/SEIRD_data"))) {
+        dir.create(glue("so_far_the_best/{country}/SEIRD_data"),recursive = T)
+      }
       file.copy(
         from = glue("outputs/{country}/SEIRD_data/{country}_{state_ac}_SEIRD_pred.csv"),
         to = glue("so_far_the_best/{country}/SEIRD_data/"),
@@ -290,7 +294,7 @@ rpyseir <- function()
       sftb_rds_folder <-
         glue("so_far_the_best/{country}/temp_rds/{state_ac}")
       if (!dir.exists(sftb_rds_folder)) {
-        dir.create(sftb_rds_folder)
+        dir.create(sftb_rds_folder,recursive = T)
       }
       rds_file_list <-
         list.files(glue("outputs/{country}/temp_rds/{state_ac}/"),full.names = T)
@@ -2360,8 +2364,8 @@ check_for_update_1m3f <- function(force=F,skip=F)
     file.copy(from = "inputs/observed_timerseries_dataset/f_1m3f_dataset/CA_timeseries.csv",
               to = "inputs/observed_timerseries_dataset/f_1m3f_dataset/out_of_date",
               overwrite = T)
-    download.file(url = "https://instant.1point3acres.com/v1/api/coronavirus/us/cases?token=K38mXWhI", destfile = "US_timeseries.csv")
-    download.file(url = "https://instant.1point3acres.com/v1/api/coronavirus/canada/cases?token=K38mXWhI", destfile = "CA_timeseries.csv")
+    download.file(url = "https://instant.1point3acres.com/v1/api/coronavirus/us/cases?token=Dljs8daW", destfile = "inputs/observed_timerseries_dataset/f_1m3f_dataset/US_timeseries.csv")
+    download.file(url = "https://instant.1point3acres.com/v1/api/coronavirus/canada/cases?token=Dljs8daW", destfile = "inputs/observed_timerseries_dataset/f_1m3f_dataset/CA_timeseries.csv")
     
     current_time <- Sys.time()
     saveRDS(current_time,"inputs/observed_timerseries_dataset/f_1m3f_dataset/previous_update_time.rds")
@@ -2473,6 +2477,10 @@ download.file(url = "https://instant.1point3acres.com/v1/api/coronavirus/us/case
 ```{r}
 #### setup
 ### PENDING: explain the parameters
+
+## update setup
+force_update <- F
+skip_update <- T
 
 ## target setup
 country <- "CA"  # "US" or "CA"
